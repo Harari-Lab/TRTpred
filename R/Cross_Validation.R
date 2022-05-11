@@ -1,7 +1,6 @@
 # Cross validation
 
 suppressMessages(require(Seurat))
-suppressMessages(require(splitTools))
 suppressMessages(require(foreach))
 suppressMessages(library(dplyr))
 suppressMessages(library(tidyr))
@@ -22,102 +21,383 @@ DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, LIMMA.METHODS, EDGER.METHODS)
 FEATURE.TRANS.METHODS <- c("pca")
 EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 
-#' Create Cross-validation folds
+
+
+#' Train Model function
 #' 
-#' Function to create cross validation folds using the `splitTools::create_folds()` function
+#' Home function to train and test a model (LR or signature )
 #' 
-#' @param data.input data.frame; input data
-#' @param data.output data.frame; output data
-#' @param column.split vector of character or just one string; 
-#' Columns in `data.output` that will be used to create "balanced" splitted data-sets
-#' @param k.outer numerical: The number of outer folds
-#' Default = 5
-#' @param k.inner numerical: The number of inner folds. If 0, no inner fold is computed
-#' Default = 0
-#' @param seed numerical: The seed
+#' @param x.train data.frame or matrix; The input matrix corresponding to the feature 
+#' space only. Additional covariates are found in `y`. Rows = samples, Columns = features
+#' @param y.train data.frame or matrix; The output matrix. 
+#' Columns = c(y.label, y.covariates, y.sample)
+#' @param  x.test data.frame or matrix; The input data like x.train but for testing
+#' @param  y.test data.frame or matrix; The output matrix like y.train but for testing
+#' @param y.label character; The column of `y` corresponding to the binary output
+#' @param y.covariates character vector; The columns of `y` corresponding to the covariates
+#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature"
+#' @param method character; The prediction method. Possible values are: "LR": 
+#' Logistic regression or "signature" signature-score approach. 
+#' @param hyperparams list: The hyper-parameter list. 
+#' if method = "LR": Elements of list are 
+#'   - "alpha" (L2-regularization): Vector of alpha values (0-1)
+#'   - "lambda" (L1-regularization): Vector of lambda values (0-1)
+#' if method = "signature": Elements of list are 
+#'   - "signature.lengths": Vector of signature lengths
+#'   - "signature.side": Vector of siganture sides ("up", "down" or "both")
+#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
+#'   - "signature.methods": Vector of signature score methods
+#' @param data.trans.method character: The data transforamtion method. 
+#' Possible values are "pca" 
+#' Default = "none" i.e. no transformation. 
+#' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
+#' to select PCs explaining more variance than the threhsold
+#' @param DA.method character; The discriminant analysis (DA) method. 
+#' Possible values are "wilcox"
+#' Default = "none" i.e. no discriminant analysis
+#' @param DA.p.adjust.method character; The p-value adjust method for the 
+#' discriminant analysis. 
+#' Default = "fdr"
+#' @param DA.p.val.threshold numeric; The p-val significant threshold. 
+#' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
+#' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
+#' default = "wilcox" from the Seurat::FindMarker() function
+#' @param save.DEA.folder character; Folder to save the DEA information in
 #' 
-#' @return list of list of indexes creating the folds (see ? splitTools::create_folds())
+#' @return data.frame summarizing the Nested-cross-validation
 #' 
 #' @export
-CreateCVFolds <- function(data.input, data.output, column.split, k.outer = 5, k.inner = 0, seed = 1234){
+TrainModel <- function(x.train, y.train, 
+                       y.label, y.covariates = NULL, y.sample = NULL,
+                       x.test = NULL, y.test = NULL,
+                       method = c("LR", "signature"),
+                       hyperparams = NULL,
+                       data.trans.method = c("none", FEATURE.TRANS.METHODS), 
+                       pca.explained.var.threshold = NULL,
+                       DA.method = c("none", DA.METHODS),
+                       DA.p.adjust.method = P.ADJUST.METHODS,
+                       DA.p.val.threshold = 0.05,
+                       LR.prob.threhsold = 0.5,
+                       DEA.method = DEA.METHODS, 
+                       save.DEA.folder){
   
-  column.split <- c(column.split)
-  if (length(column.split) > 1){
-    data.output$split_group <- apply(data.output[, column.split], 1, paste, collapse = "_")
-  } else {
-    data.output$split_group <- data.output[[column.split]]
+  # sanity check:
+  if (is.null(method)){method = "LR"}
+  if (is.null(data.trans.method)){data.trans.method <- "none"}
+  if (is.null(DA.method)){DA.method <- "none"}
+  if (is.null(P.ADJUST.METHODS)){P.ADJUST.METHODS <- "none"}
+  if (is.null(DEA.method)){DEA.method <- "wilcox"}
+  
+  # Setting parameters: 
+  method <- match.arg(method) # default = "LR"
+  data.trans.method <- match.arg(data.trans.method) # default = "none"
+  DA.method <- match.arg(DA.method) # default = "none"
+  DA.p.adjust.method <- match.arg(DA.p.adjust.method) # default = "fdr"
+  DEA.method <- match.arg(DEA.method) # default = "wilcox"
+
+  if (nrow(x.test) == 0){
+    x.test <- NULL
+    y.test <- NULL
   }
   
-  # Create the outer folds:
-  folds.outer <- splitTools::create_folds(y = data.output$split_group, k = k.outer, m_rep = 1, seed = seed)
+  # Feature transformation
+  if (data.trans.method != "none"){
+    data.transformed <- FeatureTrans(
+      x.train = x.train, 
+      x.test = x.test, 
+      method = data.trans.method,
+      explained.var.threshold = pca.explained.var.threshold)
+    
+    x.train <- data.transformed$x.train
+    x.test <- data.transformed$x.test
+    
+    rm(data.transformed)
+  }
   
-  # Create the container of the inner folds for each outer fold
-  folds.outer.inner <- list()
+  # Discriminant analysis
+  if (DA.method != "none"){
+    discr.res <- DiscrAnalysisBinary(
+      x = x.train, 
+      y = y.train[, y.label], 
+      method = DA.method, 
+      p.adjust.method = DA.p.adjust.method, 
+      p.val.threshold = DA.p.val.threshold
+    )
+    sig.features <- rownames(subset(discr.res, Significant))
+    
+    if (length(sig.features) > 0){
+      x.train <- x.train[, sig.features, drop = F]
+      if (!is.null(x.test)){
+        x.test <- x.test[, sig.features, drop = F]
+      }
+    } else {
+      warning("Discriminant Analysis: No significant features were identified. We continue without Discriminant Analysis")
+    }
+  }
+  
+  if (method == "LR"){
+    
+    # Prepare data
+    # For LR, the input (x) and output (y) are in the same data.frame
+    design.str <- paste(y.label, "~", paste(c(colnames(x.train), y.covariates), collapse = " + "), sep = " ")
+    
+    data.train <- cbind(x.train, y.train)
+    data.test <- cbind(x.test, y.test)
+    
+    # Run the training
+    res.model <- LRCrossValidation(
+      data.train = data.train, 
+      data.test = data.test,
+      design.str = design.str, 
+      hyperparams = hyperparams, 
+      model.prob.threshold = LR.prob.threhsold)
+    
+  } else if (method == "signature"){
+    # Create Seurat object
+    data.train <- Seurat::CreateSeuratObject(counts = t(x.train), assay = "RNA", project = "NCV", meta.data = y.train)
+    data.test  <- Seurat::CreateSeuratObject(counts = t(x.test), assay = "RNA", project = "NCV", meta.data = y.test)
+    
+    # Get the results of the model for all hyperparmeters
+    res.model <- SignatureCrossValidation(
+      data.train = data.train, 
+      data.test = data.test, 
+      y.label = y.label, 
+      y.sample = y.sample, 
+      y.covariates = y.covariates, 
+      DEA.method = DEA.method,
+      signature.lengths = hyperparams$signature.lengths, 
+      signature.sides = hyperparams$signature.side, 
+      signature.rm.regex = hyperparams$signature.rm.regex, 
+      signature.methods = hyperparams$signature.methods, 
+      assay = "RNA", 
+      slot = "counts",
+      save.DEA.folder = save.DEA.folder)
+    
+  }
+  
+  return(res.model)
+}
+
+
+#' Create Cross-validation folds
+#' 
+#' Function to create cross validation folds
+#' 
+#' @param y vector; the vector to create the CV folds from
+#' @param k numerical: The number of outer folds
+#' Default = 5
+#' @param y.leave.1.out vector; If not NULL, vector to create Leave-1-out category CV
+#' @param sampling.method character; The sampling method to balance the folds. 
+#' if "under", Undersampling is performed to balance the categories in every fold
+#' if "upper", Uppersampling is performed to balance the categories in every fold
+#' if "none", no balancing sampling is performed. 
+#' Default = "under"
+#' @param replicates numerical; The number of replicates. 
+#' At each replicate, the seed is increased by 1
+#' @param seed numerical: The seed Default = .Random.seed[1]
+#' 
+#' @return list containing the index of each sample belonging to the training and testing set for every fold
+#' names of list = names of CV folds. values of list = list with two names 
+#' - train: Training sample indexes
+#' - test: Testing sample indexes
+#' 
+#' @export
+CreateCVFolds <- function(y, y.leave.1.out = NULL, k = 5, replicates = 1,
+                          sampling.method = c("under", "upper", "none"), 
+                          seed = .Random.seed[1]){
+  
+  # Sanity checks:
+  sampling.method <- match.arg(sampling.method)
+  if (replicates < 1){
+    replicates <- 1
+  }
+  
+  # Get the mask of positive y values: 
+  y <- as.factor(y)
+  mask_y_pos <- y == levels(y)[1]
+  
+  # Prepare the split group depending upon wheather you want to do a classical 
+  # k-fold CV or a leave-one-out based on values in a vector (i.e. y.leave.1.out)
+  if (!is.null(y.leave.1.out)){
+    fold_start_name <- "FoldL1O"
+    
+    y.split.group <- as.character(y.leave.1.out)
+    y.split.group.classes <- unique(y.leave.1.out)
+  } else if (!is.null(k)){
+    fold_start_name <- "FoldK"
+    
+    idx.pos <- which(mask_y_pos)
+    idx.neg <- which(!mask_y_pos)
+    
+    y.split.group <- replicate(n = length(y), NA) 
+    
+    set.seed(seed)
+    idx.pos.k.groups <- sample(1:length(idx.pos)%%k)
+    for (k_i in 0:(k-1)){ # k_i = 0
+      y.split.group[idx.pos[which(idx.pos.k.groups == k_i)]] <- k_i
+    }
+    set.seed(seed)
+    idx.neg.k.groups <- sample(1:length(idx.neg)%%k)
+    for (k_i in 0:(k-1)){ # k_i = 0
+      y.split.group[idx.neg[which(idx.neg.k.groups == k_i)]] <- k_i
+    }
+    y.split.group <- as.character(y.split.group)
+    y.split.group.classes <- as.character(0:(k-1))
+  } else {
+    stop(" IN CreateCVFolds: k or y.leave.1.out must be defined")
+  }
+  
+  
+  fold.list <- list() # empty container
+  for (rep_ in 1:replicates){ # rep_ <- replicates[1]
+    for (y.split.cat in y.split.group.classes){ # y.split.cat <- y.split.group.classes[1]
+      fold.outer.name <- paste0(fold_start_name, "_", y.split.cat, "_", rep_)
+      
+      idx.train.pos <- which(y.split.group != y.split.cat & mask_y_pos)
+      idx.train.neg <- which(y.split.group != y.split.cat & !mask_y_pos)
+      idx.test.pos <-  which(y.split.group == y.split.cat & mask_y_pos)
+      idx.test.neg <-  which(y.split.group == y.split.cat & !mask_y_pos)
+      
+      if (sampling.method == "under"){
+        train.length <- min(c(length(idx.train.pos), length(idx.train.neg)))
+        test.length <-  min(c(length(idx.test.pos),  length(idx.test.neg)))
+        
+        set.seed(seed = seed)
+        idx.train<- c(idx.train.pos[sample.int(n = length(idx.train.pos), size = train.length, replace = F)], 
+                      idx.train.neg[sample.int(n = length(idx.train.neg), size = train.length, replace = F)])
+        set.seed(seed = seed)
+        idx.test <- c(idx.test.pos[sample.int(n = length(idx.test.pos), size = test.length, replace = F)], 
+                      idx.test.neg[sample.int(n = length(idx.test.neg), size = test.length, replace = F)])
+        
+      } else if (sampling.method == "upper"){
+        train.length <- max(c(length(idx.train.pos), length(idx.train.neg)))
+        test.length <-  max(c(length(idx.test.pos),  length(idx.test.neg)))
+        
+        set.seed(seed = seed)
+        idx.train <- c(idx.train.pos[sample.int(n = length(idx.train.pos), size = train.length, replace = T)], 
+                       idx.train.neg[sample.int(n = length(idx.train.neg), size = train.length, replace = T)])
+        set.seed(seed = seed)
+        idx.test <- c(idx.test.pos[sample.int(n = length(idx.test.pos), size = test.length, replace = T)], 
+                      idx.test.neg[sample.int(n = length(idx.test.neg), size = test.length, replace = T)])
+      } else {
+        idx.train <- c(idx.train.pos, idx.train.neg)
+        idx.test <- c(idx.test.pos, idx.test.neg)
+      }
+      fold.list[[fold.outer.name]] <- list("train" = idx.train, "test" = idx.test)
+      seed <- seed + 1 # change seed for the next replicate
+    } 
+  }
+  
+  return(fold.list)
+}
+
+
+#' Create Nested-Cross-validation folds
+#' 
+#' Function to create Nested cross validation folds using the CreateCVFolds in this package.
+#' See ? CreateCVFolds() for more details
+#' 
+#' @param y vector; the vector to create the CV folds from
+#' @param k.out numerical: The number of outer folds
+#' Default = 5
+#' @param k.in numerical: The number of inner folds
+#' Default = 5
+#' @param y.leave.1.out vector; If not NULL, vector to create Leave-1-out category CV
+#' @param sampling.method character; The sampling method to balance the folds. 
+#' if "under", Undersampling is performed to balance the categories in every fold
+#' if "upper", Uppersampling is performed to balance the categories in every fold
+#' if "none", no balancing sampling is performed. 
+#' Default = "under"
+#' @param replicates numerical; The number of replicates. 
+#' At each replicate, the seed is increased by 1
+#' @param seed numerical: The seed Default = .Random.seed[1]
+#' 
+#' @return list of list. first level = outer-folds, second level = inner folds. 
+#' The content of the inner-fold list is the same as in CreateCVFolds()
+#' 
+#' @export
+CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
+                                replicates = 1,
+                                sampling.method = c("under", "upper", "none"), 
+                                seed = .Random.seed[1]){
+  
+  # Sanity checks:
+  sampling.method <- match.arg(sampling.method)
+  
+  if (replicates < 1){
+    replicates <- 1
+  }
   
   # Create container for summarizing the size of every fold
   fold.size.df <- data.frame()
   
-  for (fold.out.name in names(folds.outer)){
-    # cat(paste0("fold.out.name: ", fold.out.name, "\n"))
+  # Create the outer folds:
+  folds.outer <- CreateCVFolds(
+    y = y, 
+    k = k.out,
+    y.leave.1.out = y.leave.1.out, 
+    replicates = replicates, 
+    sampling.method = sampling.method,
+    seed = seed)
+  
+  # Create the container of the inner folds for each outer fold
+  folds.outer.inner <- list()
+  for (fold.out.name in names(folds.outer)){ # fold.out.name <- names(folds.outer)[1]
     
     # Get the indexes of outer fold
     fold.out <- folds.outer[[fold.out.name]]
     
     # Get the outer training and testing data
-    data.output.train.outer <- data.output[fold.out,]
-    data.output.test.outer  <- data.output[-fold.out,]
-    data.input.train.outer <- data.input[fold.out,]
-    data.input.test.outer  <- data.input[-fold.out,]
+    y.train.outer <- y[fold.out$train]
+    y.test.outer  <- y[fold.out$test]
+    if (!is.null(y.leave.1.out)){
+      y.leave.1.out.train.outer <- y.leave.1.out[fold.out$train]
+      y.leave.1.out.test.outer  <- y.leave.1.out[fold.out$test]
+    } else {
+      y.leave.1.out.train.outer <- NULL
+      y.leave.1.out.test.outer  <- NULL
+    }
     
     # Get the distribution of labels:
-    table.train.outer <- table(data.output.train.outer$split_group)
-    table.test.outer <- table(data.output.test.outer$split_group)
+    table.train.outer <- table(y.train.outer)
+    table.test.outer <- table(y.test.outer)
     
     # Create the inner folds
-    if (k.inner > 0){
-      # Create the inner folds:
-      fold.inner <- splitTools::create_folds(y = data.output.train.outer$split_group, k = k.inner, m_rep = 1, seed = seed)
+    # if (k.in > 0){
+    folds.inner <- CreateCVFolds(
+      y = y.train.outer, 
+      k = k.in,
+      y.leave.1.out = y.leave.1.out.train.outer, 
+      replicates = replicates, 
+      sampling.method = sampling.method,
+      seed = seed)
+    
+    # Create empty container: 
+    folds.outer.inner[[fold.out.name]] <- folds.inner
+    for (fold.in.name in names(folds.inner)) {
       
-      # Create empty container: 
-      folds.outer.inner[[fold.out.name]] <- list()
-      for (fold.in.name in names(fold.inner)) {
-        # cat(paste0("\tfold.in.name: ", fold.in.name, "\n"))
-        
-        # Get the indexes of inner fold
-        fold.in <- fold.inner[[fold.in.name]]
-        
-        # Save results in folds.outer.inner
-        folds.outer.inner[[fold.out.name]][[fold.in.name]] <- fold.in
-        
-        # Get the inner training and testing data
-        data.output.train.inner <- data.output.train.outer[fold.in,]
-        data.output.test.inner  <- data.output.train.outer[-fold.in,]
-        data.input.train.inner <- data.input.train.outer[fold.in,]
-        data.input.test.inner  <- data.input.train.outer[-fold.in,]
-        
-        # Get the distribution of labels:
-        table.train.inner <- table(data.output.train.inner$split_group)
-        table.test.inner <- table(data.output.test.inner$split_group)
-        
-        fold.size.df.line <- list(
-          "outer" = fold.out.name,
-          "n_train.outer" = paste(names(table.train.outer), as.numeric(table.train.outer), sep = ": ", collapse = ", "),
-          "n_test.outer" = paste(names(table.test.outer), as.numeric(table.test.outer), sep = ": ", collapse = ", "),
-          "inner" = fold.in.name,
-          "n_train.inner" = paste(names(table.train.inner), as.numeric(table.train.inner), sep = ": ", collapse = ", "),
-          "n_test.inner" = paste(names(table.test.inner), as.numeric(table.test.inner), sep = ": ", collapse = ", ")
-        )
-        
-        fold.size.df <- rbind(fold.size.df, fold.size.df.line)
+      # Get the indexes of inner fold
+      fold.in <- folds.inner[[fold.in.name]]
+      
+      # Get the inner training and testing data
+      y.train.inner <- y.train.outer[fold.in$train]
+      y.test.inner  <- y.train.outer[fold.in$test]
+      if (!is.null(y.leave.1.out)){
+        y.leave.1.out.train.inner <- y.leave.1.out.train.outer[fold.in$train]
+        y.leave.1.out.test.inner <- y.leave.1.out.train.outer[fold.in$test]
       }
-    } else {
+      
+      # Get the distribution of labels:
+      table.train.inner <- table(y.train.inner)
+      table.test.inner <- table(y.test.inner)
+      
       fold.size.df.line <- list(
         "outer" = fold.out.name,
         "n_train.outer" = paste(names(table.train.outer), as.numeric(table.train.outer), sep = ": ", collapse = ", "),
         "n_test.outer" = paste(names(table.test.outer), as.numeric(table.test.outer), sep = ": ", collapse = ", "),
-        "inner" = "",
-        "n_train.inner" = 0,
-        "n_test.inner" = 0
+        "inner" = fold.in.name,
+        "n_train.inner" = paste(names(table.train.inner), as.numeric(table.train.inner), sep = ": ", collapse = ", "),
+        "n_test.inner" = paste(names(table.test.inner), as.numeric(table.test.inner), sep = ": ", collapse = ", ")
       )
       
       fold.size.df <- rbind(fold.size.df, fold.size.df.line)
@@ -196,11 +476,11 @@ NestedCrossValidation <- function(x, y,
   DEA.method <- match.arg(DEA.method) # default = "wilcox"
   
   names.outer <- names(folds.outer)
-  names.inner <- names(folds.outer.inner[[names.outer[1]]])
   
   NCV.res <- 
     foreach::foreach(fold.out.name = names.outer, .combine='rbind') %:% # fold.out.name <- names.outer[1]
-    foreach::foreach(fold.in.name = names.inner, .combine='rbind') %dopar% { # fold.in.name <- names.inner[1]
+    foreach::foreach(fold.in.name = names(folds.outer.inner[[fold.out.name]]), .combine='rbind') %dopar% { # fold.in.name <- names.inner[1]
+      message(paste0("fold.out.name: ", fold.out.name, "\tfold.in.name: ", fold.in.name))
       
       # Get the indexes of outer fold
       fold.out <- folds.outer[[fold.out.name]]
@@ -209,86 +489,37 @@ NestedCrossValidation <- function(x, y,
       fold.in <- folds.outer.inner[[fold.out.name]][[fold.in.name]]
       
       # Get the outer training and testing data
-      x.train.outer <- x[fold.out,, drop=F]
-      y.train.outer <- y[fold.out,, drop=F]
-      x.test.outer  <- x[-fold.out,, drop=F]
-      y.test.outer  <- y[-fold.out,, drop=F]
+      x.train.outer <- x[fold.out$train,, drop=F]
+      y.train.outer <- y[fold.out$train,, drop=F]
+      x.test.outer  <- x[fold.out$test,, drop=F] # we do not need it here
+      y.test.outer  <- y[fold.out$test,, drop=F] # we do not need it here
       
       # Get the inner training and testing data
-      x.train.inner <- x.train.outer[fold.in,, drop=F]
-      y.train.inner <- y.train.outer[fold.in,, drop=F]
-      x.test.inner  <- x.test.outer[-fold.in,, drop=F]
-      y.test.inner  <- y.test.outer[-fold.in,, drop=F]
+      x.train.inner <- x.train.outer[fold.in$train,, drop=F]
+      y.train.inner <- y.train.outer[fold.in$train,, drop=F]
+      x.test.inner  <- x.train.outer[fold.in$test,, drop=F]
+      y.test.inner  <- y.train.outer[fold.in$test,, drop=F]
       
+      res.model <- TrainModel(
+        x.train = x.train.inner,
+        y.train = y.train.inner,
+        x.test = x.test.inner,
+        y.test = y.test.inner,
+        y.label = y.label,
+        y.covariates = y.covariates,
+        y.sample = y.sample,
+        method = method,
+        hyperparams = hyperparams,
+        data.trans.method = data.trans.method,
+        pca.explained.var.threshold = pca.explained.var.threshold,
+        DA.method = DA.method,
+        DA.p.adjust.method = DA.p.adjust.method,
+        DA.p.val.threshold = DA.p.val.threshold,
+        LR.prob.threhsold = LR.prob.threhsold,
+        DEA.method = DEA.method,
+        save.DEA.folder = NULL)
       
-      if (params.feature.trans$method != "none"){
-        data.transformed <- FeatureTrans(
-          x.train = x.train.inner, 
-          x.test = x.test.inner, 
-          method = data.trans.method,
-          explained.var.threshold = pca.explained.var.threshold)
-        
-        x.train.inner <- data.transformed$x.train
-        x.test.inner <- data.transformed$x.test
-        rm(data.transformed)
-      }
-      
-      # Disciminant analysis
-      if (DA.method != "none"){
-        discr.res <- DiscrAnalysisBinary(
-          x = x.train.inner, 
-          y = y.train.inner[, y.label], 
-          method = DA.method, 
-          p.adjust.method = DA.p.adjust.method, 
-          p.val.threshold = DA.p.val.threshold
-          )
-        sig.features <- rownames(subset(discr.res, Significant))
-        
-        if (length(sig.features) > 0){
-          x.train.inner <- x.train.inner[, sig.features, drop = F]
-          x.test.inner <- x.test.inner[, sig.features, drop = F]
-        } else {
-          warning("Discriminant Analysis: No significant features were identified. We continue without Discriminant Analysis")
-        }
-      }
-      
-      if (method == "LR"){
-        # Prepare data
-        # For LR, the input (x) and output (y) are in the same data.frame
-        design.str <- paste(y.label, "~", paste(c(colnames(x.train.inner), y.covariates), collapse = " + "), sep = " ")
-        data.train.inner <- cbind(x.train.inner, y.train.inner)
-        data.test.inner <- cbind(x.test.inner, y.test.inner)
-        
-        # Run the training
-        res.model <- LRCrossValidation(
-          data.train = data.train.inner, 
-          data.test = data.test.inner,
-          design.str = design.str, 
-          hyperparams = hyperparams, 
-          model.prob.threshold = LR.prob.threhsold)
-        
-      } else if (method == "signature"){
-        # Create Seurat object
-        data.train.inner <- Seurat::CreateSeuratObject(counts = t(x.train.inner), assay = "RNA", project = "NCV", meta.data = y.train.inner)
-        data.test.inner <- Seurat::CreateSeuratObject(counts = t(x.test.inner), assay = "RNA", project = "NCV", meta.data = y.test.inner)
-        
-        # Get the results of the model for all hyperparmeters
-        res.model <- SignatureCrossValidation(
-          data.train = data.train.inner, 
-          data.test = data.test.inner, 
-          y.label = y.label, 
-          y.sample = y.sample, 
-          y.covariates = y.covariates, 
-          DEA.method = DEA.method,
-          signature.lengths = hyperparams$signature.lengths, 
-          signature.sides = hyperparams$signature.side, 
-          signature.rm.regex = hyperparams$signature.rm.regex, 
-          signature.methods = hyperparams$signature.methods, 
-          assay = "RNA", 
-          slot = "counts")
-      }
-      
-      
+      # Add to the results additional feature dimention and properties
       res.model$outer <- fold.out.name
       res.model$inner = fold.in.name
       
@@ -439,82 +670,31 @@ CrossValidation <- function(x, y,
       fold.out <- folds.outer[[fold.out.name]]
       
       # Get the outer training and testing data
-      x.train.outer <- x[fold.out,, drop=F]
-      y.train.outer <- y[fold.out,, drop=F]
-      x.test.outer  <- x[-fold.out,, drop=F]
-      y.test.outer  <- y[-fold.out,, drop=F]
+      x.train.outer <- x[fold.out$train,, drop=F]
+      y.train.outer <- y[fold.out$train,, drop=F]
+      x.test.outer  <- x[fold.out$test,, drop=F] 
+      y.test.outer  <- y[fold.out$test,, drop=F]
       
       hyperparams_ <- hyperparams.list[[fold.out.name]]
       
-      if (params.feature.trans$method != "none"){
-        data.transformed <- FeatureTrans(
-          x.train = x.train.outer, 
-          x.test = x.test.outer, 
-          method = data.trans.method,
-          explained.var.threshold = pca.explained.var.threshold)
-        
-        x.train.outer <- data.transformed$x.train
-        x.test.outer <- data.transformed$x.test
-        rm(data.transformed)
-      }
-      
-      # Disciminant analysis
-      if (DA.method != "none"){
-        discr.res <- DiscrAnalysisBinary(
-          x = x.train.outer, 
-          y = y.train.outer[, y.label], 
-          method = DA.method, 
-          p.adjust.method = DA.p.adjust.method, 
-          p.val.threshold = DA.p.val.threshold
-        )
-        sig.features <- rownames(subset(discr.res, Significant))
-        
-        if (length(sig.features) > 0){
-          x.train.outer <- x.train.outer[, sig.features, drop = F]
-          x.test.outer <- x.test.outer[, sig.features, drop = F]
-        } else {
-          warning("Discriminant Analysis: No significant features were identified. We continue without Discriminant Analysis")
-        }
-      }
-      
-      if (method == "LR"){
-        
-        # Prepare data
-        # For LR, the input (x) and output (y) are in the same data.frame
-        design.str <- paste(y.label, "~", paste(c(colnames(x.train.outer), y.covariates), collapse = " + "), sep = " ")
-        
-        data.train.outer <- cbind(x.train.outer, y.train.outer)
-        data.test.outer <- cbind(x.test.outer, y.test.outer)
-        
-        # Run the training
-        res.model <- LRCrossValidation(
-          data.train = data.train.outer, 
-          data.test = data.test.outer,
-          design.str = design.str, 
-          hyperparams = hyperparams_, 
-          model.prob.threshold = LR.prob.threhsold)
-        
-      } else if (method == "signature"){
-        # Create Seurat object
-        data.train.outer <- Seurat::CreateSeuratObject(counts = t(x.train.outer), assay = "RNA", project = "NCV", meta.data = y.train.outer)
-        data.test.outer <- Seurat::CreateSeuratObject(counts = t(x.test.outer), assay = "RNA", project = "NCV", meta.data = y.test.outer)
-        
-        # Get the results of the model for all hyperparmeters
-        res.model <- SignatureCrossValidation(
-          data.train = data.train.outer, 
-          data.test = data.test.outer, 
-          y.label = y.label, 
-          y.sample = y.sample, 
-          y.covariates = y.covariates, 
-          DEA.method = DEA.method,
-          signature.lengths = hyperparams_$signature.lengths, 
-          signature.sides = hyperparams_$signature.side, 
-          signature.rm.regex = hyperparams_$signature.rm.regex, 
-          signature.methods = hyperparams_$signature.methods, 
-          assay = "RNA", 
-          slot = "counts")
-        
-      }
+      res.model <- TrainModel(
+        x.train = x.train.outer, # [, 1:1000],
+        y.train = y.train.outer,
+        x.test = x.test.outer, # [, 1:1000],
+        y.test = y.test.outer,
+        y.label = y.label,
+        y.covariates = y.covariates,
+        y.sample = y.sample,
+        method = method,
+        hyperparams = hyperparams_,
+        data.trans.method = data.trans.method,
+        pca.explained.var.threshold = pca.explained.var.threshold,
+        DA.method = DA.method,
+        DA.p.adjust.method = DA.p.adjust.method,
+        DA.p.val.threshold = DA.p.val.threshold,
+        LR.prob.threhsold = LR.prob.threhsold,
+        DEA.method = DEA.method,
+        save.DEA.folder = NULL)
       
       res.model$outer <- fold.out.name
 

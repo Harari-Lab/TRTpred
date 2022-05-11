@@ -33,6 +33,8 @@ FeatureTrans <- function(x.train, x.test = NULL,
     x.train.res <- data.frame(pca.res$x, check.rows = F, check.names = F)
     if (!is.null(x.test)){
       x.test.res <- stats::predict(object = pca.res, newdata = x.test)
+    } else {
+      x.test.res <- NULL
     }
     
     if (!is.null(explained.var.threshold)){

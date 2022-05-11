@@ -15,6 +15,9 @@ EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 #' @export
 GetMetricsBinary <- function(ground_truth, preds){
   
+  ground_truth <- c(ground_truth)
+  preds <- c(preds)
+  
   if (length(ground_truth) != length(preds)){
     stop("ground_truth and pred not the same length")
   }

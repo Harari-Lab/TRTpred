@@ -242,7 +242,8 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
 #' @return data.frame
 #' 
 #' @export
-SignatureCrossValidation <- function(data.train, data.test, y.label, 
+SignatureCrossValidation <- function(data.train, y.label, 
+                                     data.test = NULL,
                                      y.sample = NULL, 
                                      y.covariates = NULL, 
                                      DEA.method = DEA.METHODS, 
@@ -250,7 +251,8 @@ SignatureCrossValidation <- function(data.train, data.test, y.label,
                                      signature.sides = c("both"), 
                                      signature.rm.regex = NULL,
                                      signature.methods = c("AUCell"),
-                                     assay = "RNA", slot = "counts"){
+                                     assay = "RNA", slot = "counts", 
+                                     save.DEA.folder = NULL){
   
   # Parameters settings and sanity checks:
   DEA.method <- match.arg(DEA.method)
@@ -260,7 +262,10 @@ SignatureCrossValidation <- function(data.train, data.test, y.label,
   if (!all(signature.sides %in% SIGNATURE.SIDE)){
     stop("GetSignatureList: sides input not recognized: Possible values are 'up', 'down', 'both'")
   }
+  
   # Part 1: Differential Gene expression Analysis
+  message("Run Differential Gene expression Analysis")
+  
   dea.res <- RunDEA(
     object = data.train, 
     col.DE_group = y.label, 
@@ -268,9 +273,16 @@ SignatureCrossValidation <- function(data.train, data.test, y.label,
     col.covariate = y.covariates, 
     assay = "RNA", slot = "counts", 
     method = DEA.method)
-  # saveRDS(dea.res, file = "/Users/re8587/Desktop/deres_test.rds")
+  
+  if (!is.null(save.DEA.folder)){
+    save.DEA.file = paste0(save.DEA.folder, "DEA_",DEA.method,".rds")
+    saveRDS(dea.res, file = save.DEA.file)
+  }
+  
   
   # Part 2: Create signature
+  message("Get Signatures")
+  
   signature.list <- GetSignatureList(
     df = dea.res,
     pval_col = "padj", 
@@ -282,34 +294,52 @@ SignatureCrossValidation <- function(data.train, data.test, y.label,
     remove_regex = signature.rm.regex)
   
   # Part 3: Compute signature score
+  message("Compute Signature Scores")
+  
   # pre-compute ranks
   ranks.matrices.train <- list()
   ranks.matrices.test <- list()
   X.train <- data.train@assays[["RNA"]]@counts
-  X.test <- data.test@assays[["RNA"]]@counts
+  if (!is.null(data.test)){
+    X.test <- data.test@assays[["RNA"]]@counts
+  }
   if ("UCell" %in% c(signature.methods)) {
     ranks.matrices.train[["UCell"]] <- UCell::StoreRankings_UCell(X.train)
-    ranks.matrices.test[["UCell"]] <- UCell::StoreRankings_UCell(X.test)
+    if (!is.null(data.test)){
+      ranks.matrices.test[["UCell"]] <- UCell::StoreRankings_UCell(X.test)
+    }
   }
   if ("AUCell" %in% c(signature.methods)) {
     ranks.matrices.train[["AUCell"]] <- AUCell::AUCell_buildRankings(exprMat = X.train, plotStats = F, verbose = F)
-    ranks.matrices.test[["AUCell"]] <- AUCell::AUCell_buildRankings(exprMat = X.test, plotStats = F, verbose = F)
+    if (!is.null(data.test)){
+      ranks.matrices.test[["AUCell"]] <- AUCell::AUCell_buildRankings(exprMat = X.test, plotStats = F, verbose = F)
+    }
   }
   if ("singscore" %in% c(signature.methods)) {
     ranks.matrices.train[["singscore"]] <- singscore::rankGenes(as.matrix(X.train))
-    ranks.matrices.test[["singscore"]] <- singscore::rankGenes(as.matrix(X.test))
+    if (!is.null(data.test)){
+      ranks.matrices.test[["singscore"]] <- singscore::rankGenes(as.matrix(X.test))
+    }
   }
-  rm(X.train, X.test)
+  rm(X.train)
+  if (!is.null(data.test)){
+    rm(X.test)
+  }
+
   
   # Create empty data-frames containers
   signature.score.train <- data.frame(row.names = colnames(data.train@assays[["RNA"]]@counts))
-  signature.score.test <- data.frame(row.names = colnames(data.test@assays[["RNA"]]@counts))
+  if(!is.null(data.test)){
+    signature.score.test <- data.frame(row.names = colnames(data.test@assays[["RNA"]]@counts))
+  }
   
   # Get the output labels 
   y.train <- as.factor(data.train@meta.data[, y.label])
   y.train <- y.train == levels(y.train)[1]
-  y.test <- as.factor(data.test@meta.data[, y.label])
-  y.test <- y.test == levels(y.test)[1]
+  if(!is.null(data.test)){
+    y.test <- as.factor(data.test@meta.data[, y.label])
+    y.test <- y.test == levels(y.test)[1]
+  }
   
   for (ss.method in c(signature.methods)){
     
@@ -324,24 +354,41 @@ SignatureCrossValidation <- function(data.train, data.test, y.label,
     signature.score.train <- cbind(signature.score.train, signature.score.tmp)
     
     # Get the Testing signature score
-    signature.score.tmp <- GetSignatureScore(
-      object = data.test, 
-      assay = "RNA", slot = "counts",
-      ranks = ranks.matrices.test[[ss.method]],
-      signature = signature.list,
-      method = ss.method)
-    colnames(signature.score.tmp) <- paste(ss.method, colnames(signature.score.tmp), sep = "_")
-    signature.score.test <- cbind(signature.score.test, signature.score.tmp)
+    if(!is.null(data.test)){
+      signature.score.tmp <- GetSignatureScore(
+        object = data.test, 
+        assay = "RNA", slot = "counts",
+        ranks = ranks.matrices.test[[ss.method]],
+        signature = signature.list,
+        method = ss.method)
+      colnames(signature.score.tmp) <- paste(ss.method, colnames(signature.score.tmp), sep = "_")
+      signature.score.test <- cbind(signature.score.test, signature.score.tmp)
+    }
+  }
+  
+  if (!is.null(save.DEA.folder)){
+    save.DEA.file = paste0(save.DEA.folder, "signature.score.train_",DEA.method,".rds")
+    saveRDS(signature.score.train, file = save.DEA.file)
+    if (!is.null(data.test)){
+      save.DEA.file = paste0(save.DEA.folder, "signature.score.test_",DEA.method,".rds")
+      saveRDS(signature.score.test, file = save.DEA.file)
+    }
   }
   # saveRDS(signature.score.train, file = "/Users/re8587/Desktop/signature_score_train_test_02.rds")
   # saveRDS(signature.score.test, file = "/Users/re8587/Desktop/signature_score_test_test_02.rds")
   
   # Part 4: Compute accuracies: 
+  message("Compute Accuracies")
   res.inner <- data.frame()
   for (hyper.col in colnames(signature.score.train)){ # hyper.col <- colnames(signature.score.train)[1]
+    if (!is.null(data.test)){
+      x.test = signature.score.test[,hyper.col]
+    } else {
+      x.test = NULL
+    }
     pred.res <- res <- GetSignaturePrediction(
       x.train = signature.score.train[,hyper.col], 
-      x.test = signature.score.test[,hyper.col], 
+      x.test = x.test,
       method = "greedy", 
       ground.truth = y.train)
     
@@ -357,11 +404,17 @@ SignatureCrossValidation <- function(data.train, data.test, y.label,
                                                   fn = res.train.metrics$FN)
     
     # Get testing accuracy
-    res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
-    res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
+    if (!is.null(data.test)){
+      res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
+      res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
                                                  fp = res.test.metrics$FP, 
                                                  tn = res.test.metrics$TN, 
                                                  fn = res.test.metrics$FN)
+    } else {
+      res.test.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
+      res.test.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
+    }
+    
     
     # Save results in cv.df.outer.inner:
     # TODO split "_" replace by "::" maybe..

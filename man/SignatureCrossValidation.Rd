@@ -6,8 +6,8 @@
 \usage{
 SignatureCrossValidation(
   data.train,
-  data.test,
   y.label,
+  data.test = NULL,
   y.sample = NULL,
   y.covariates = NULL,
   DEA.method = DEA.METHODS,
@@ -16,15 +16,16 @@ SignatureCrossValidation(
   signature.rm.regex = NULL,
   signature.methods = c("AUCell"),
   assay = "RNA",
-  slot = "counts"
+  slot = "counts",
+  save.DEA.folder = NULL
 )
 }
 \arguments{
 \item{data.train}{Seurat; The Seurat training dataset}
 
-\item{data.test}{Seurat; The Seurat testing dataset}
-
 \item{y.label}{character; The name of the meta.data column corresponding to the binary output}
+
+\item{data.test}{Seurat; The Seurat testing dataset}
 
 \item{y.sample}{character; The name of the meta.data column corresponding to the sample information (usefull for DESeq2, EdgeR and Limma)
 Default = NULL i.e. no sample information}

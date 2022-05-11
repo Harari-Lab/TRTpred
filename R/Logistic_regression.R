@@ -37,8 +37,11 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
   y.columns <- gsub(" *~.*", "", design.str)
   y.train <- data.train[, y.columns]
   y.train <- as.character(y.train) == levels(y.train)[1]
-  y.test <- data.test[, y.columns]
-  y.test <- as.character(y.test) == levels(y.test)[1]
+  if (!is.null(data.test)){
+    y.test <- data.test[, y.columns]
+    y.test <- as.character(y.test) == levels(y.test)[1]
+  }
+  
   
   # Formula doesn't work with "-"
   # So we replace them with a double point ".." beacause it is easy to find and replace later on. 
@@ -76,14 +79,19 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
                                                     fn = res.train.metrics$FN)
         
         # Get testing accuracy
-        y.test.prob  <- stats::predict(object = res.fit, newdata = data.test, type = "response")[,1]
-        y.test.pred <- y.test.prob >= model.prob.threshold
-        
-        res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
-        res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
-                                                   fp = res.test.metrics$FP, 
-                                                   tn = res.test.metrics$TN, 
-                                                   fn = res.test.metrics$FN)
+        if (!is.null(data.test)){
+          y.test.prob  <- stats::predict(object = res.fit, newdata = data.test, type = "response")[,1]
+          y.test.pred <- y.test.prob >= model.prob.threshold
+          
+          res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
+          res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
+                                                     fp = res.test.metrics$FP, 
+                                                     tn = res.test.metrics$TN, 
+                                                     fn = res.test.metrics$FN)
+        } else {
+          res.test.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
+          res.test.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
+        }
         
         # Save results in cv.df.outer.inner:
         res.info <- list(
