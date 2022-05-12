@@ -130,21 +130,45 @@ RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){
   for (signature.key in names(signature)){
     signature.input[[signature.key]] <- c()
     if ("up" %in% names(signature[[signature.key]])){
-      signature.input[[signature.key]] <- c(
-        signature.input[[signature.key]], 
-        paste0(signature[[signature.key]]$up, "+"))
+      if (length(signature[[signature.key]]$up) > 0){
+        signature.input[[signature.key]] <- c(
+          signature.input[[signature.key]], 
+          paste0(signature[[signature.key]]$up, "+"))
+      } else {
+        signature.input[[signature.key]] <- c(
+          signature.input[[signature.key]], c(NA))
+      }
     }
     if ("down" %in% names(signature[[signature.key]])){
-      signature.input[[signature.key]] <- c(
-        signature.input[[signature.key]], 
-        paste0(signature[[signature.key]]$down, "-"))
+      if (length(signature[[signature.key]]$down) > 0){
+        signature.input[[signature.key]] <- c(
+          signature.input[[signature.key]], 
+          paste0(signature[[signature.key]]$down, "-"))
+      } else {
+        signature.input[[signature.key]] <- c(
+          signature.input[[signature.key]], c(NA))
+      }
     }
   }
   
-  res <- UCell::ScoreSignatures_UCell(features = signature.input, # list(res = s_up_down), 
-                                      precalc.ranks = ranks, w_neg = 1)
+  missing.signatures <- c()
+  for (siganture.key in names(signature.input)){
+    if (all(is.na(signature.input[[siganture.key]]))){
+      signature.input[[siganture.key]] <- NULL
+      missing.signatures <- c(missing.signatures, siganture.key)
+    }
+  }
   
-  res <- data.frame(res)
+  res <- data.frame(row.names = colnames(X))
+  if (length(signature.input) > 0){
+    res <- UCell::ScoreSignatures_UCell(features = signature.input, # list(res = s_up_down), 
+                                        precalc.ranks = ranks, w_neg = 1)
+  } 
+  if (length(missing.signatures) > 0){
+    for (col_ in missing.signatures){
+      res[[col_]] <- NA
+    }
+  }
   
   return(res)
 }
@@ -181,29 +205,48 @@ RunSigScoreAUCell <- function(X, signature, ranks = NULL, scale = F){
     }
   }
   
-  res <- AUCell::AUCell_calcAUC(geneSets = signature.input, 
-                 rankings = ranks, 
-                 normAUC = T, verbose = F)
-  
-  
-  res <- data.frame(t(AUCell::getAUC(res)))
-  
-  for (signature.key in names(signature)){
-    signature.key.new.up <-   paste(signature.key, "up",   sep="_")
-    signature.key.new.down <- paste(signature.key, "down", sep="_")
-    
-    if (!signature.key.new.up %in% colnames(res)){
-      res[[signature.key.new.up]] <- 0
+  missing.signatures <- c()
+  for (siganture.key in names(signature.input)){
+    if (length(signature.input[[siganture.key]]) == 0){
+      signature.input[[siganture.key]] <- NULL
+      missing.signatures <- c(missing.signatures, siganture.key)
     }
-    if (!signature.key.new.down %in% colnames(res)){
-      res[[signature.key.new.down]] <- 0
-    }
+  }
+  
+  res <- data.frame(row.names = colnames(X))
+  if (length(signature.input) > 0){
+    res <- AUCell::AUCell_calcAUC(geneSets = signature.input, 
+                                  rankings = ranks, 
+                                  normAUC = T, verbose = F)
     
-    res[[signature.key]] <- res[[signature.key.new.up]] - res[[signature.key.new.down]]
+    
+    res <- data.frame(t(AUCell::getAUC(res)))
+    
+    for (signature.key in names(signature)){
+      signature.key.new.up <-   paste(signature.key, "up",   sep="_")
+      signature.key.new.down <- paste(signature.key, "down", sep="_")
+      
+      if (!signature.key.new.up %in% colnames(res)){
+        res[[signature.key.new.up]] <- 0
+      }
+      if (!signature.key.new.down %in% colnames(res)){
+        res[[signature.key.new.down]] <- 0
+      }
+      
+      res[[signature.key]] <- res[[signature.key.new.up]] - res[[signature.key.new.down]]
+    }
+  } 
+  
+  if (length(missing.signatures) > 0){
+    missing.signatures.keys <- gsub("_((up)|(down))$", "", missing.signatures)
+    missing.signatures.keys <- unique(missing.signatures.keys)
+    for (col_ in missing.signatures.keys){
+      res[[col_]] <- NA
+    }
   }
   
   res <- res[, names(signature), drop = F]
-  
+
   return(res)
 }
 
@@ -257,7 +300,15 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
                                  upSetColc = signature.one.sided.up, 
                                  centerScore = T, 
                                  knownDirection = T)
-    res.tmp <- data.frame(t(res.tmp$Scores))
+    if (!is.null(res.tmp$Scores)){
+      res.tmp <- data.frame(t(res.tmp$Scores))
+    } else {
+      res.tmp <- data.frame(row.names = colnames(X))
+    }
+    missing_columns <- names(signature.one.sided.up)[!(names(signature.one.sided.up) %in% colnames(res.tmp))]
+    for (col_ in missing_columns){
+      res.tmp[[col_]] <- NA
+    }
     res <- cbind(res, res.tmp)
   }
   if (length(signature.one.sided.down) > 0){
@@ -265,8 +316,17 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
                                  upSetColc = signature.one.sided.down, 
                                  centerScore = T, 
                                  knownDirection = T)
-    res.tmp <- data.frame(t(res.tmp$Scores))
-    res.tmp <- -res.tmp
+    
+    if (!is.null(res.tmp$Scores)){
+      res.tmp <- data.frame(t(res.tmp$Scores))
+      res.tmp <- -res.tmp
+    } else {
+      res.tmp <- data.frame(row.names = colnames(X))
+    }
+    missing_columns <- names(signature.one.sided.down)[!(names(signature.one.sided.down) %in% colnames(res.tmp))]
+    for (col_ in missing_columns){
+      res.tmp[[col_]] <- NA
+    }
     res <- cbind(res, res.tmp)
   }
   if (length(signature.input.up) > 0){
@@ -275,7 +335,15 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
                                  downSetColc = signature.input.down, 
                                  centerScore = T, 
                                  knownDirection = T)
-    res.tmp <- data.frame(t(res.tmp$Scores))
+    if (!is.null(res.tmp$Scores)){
+      res.tmp <- data.frame(t(res.tmp$Scores))
+    } else {
+      res.tmp <- data.frame(row.names = colnames(X))
+    }
+    missing_columns <- names(signature.input.up)[!(names(signature.input.up) %in% colnames(res.tmp))]
+    for (col_ in missing_columns){
+      res.tmp[[col_]] <- NA
+    }
     res <- cbind(res, res.tmp)
   }
 

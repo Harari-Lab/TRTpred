@@ -81,13 +81,6 @@ TrainModel <- function(x.train, y.train,
                        DEA.method = DEA.METHODS, 
                        save.DEA.folder){
   
-  # sanity check:
-  if (is.null(method)){method = "LR"}
-  if (is.null(data.trans.method)){data.trans.method <- "none"}
-  if (is.null(DA.method)){DA.method <- "none"}
-  if (is.null(P.ADJUST.METHODS)){P.ADJUST.METHODS <- "none"}
-  if (is.null(DEA.method)){DEA.method <- "wilcox"}
-  
   # Setting parameters: 
   method <- match.arg(method) # default = "LR"
   data.trans.method <- match.arg(data.trans.method) # default = "none"
@@ -155,7 +148,11 @@ TrainModel <- function(x.train, y.train,
   } else if (method == "signature"){
     # Create Seurat object
     data.train <- Seurat::CreateSeuratObject(counts = t(x.train), assay = "RNA", project = "NCV", meta.data = y.train)
-    data.test  <- Seurat::CreateSeuratObject(counts = t(x.test), assay = "RNA", project = "NCV", meta.data = y.test)
+    if(!is.null(x.test)){
+      data.test  <- Seurat::CreateSeuratObject(counts = t(x.test), assay = "RNA", project = "NCV", meta.data = y.test)
+    } else {
+      data.test <- NULL
+    }
     
     # Get the results of the model for all hyperparmeters
     res.model <- SignatureCrossValidation(
@@ -172,7 +169,6 @@ TrainModel <- function(x.train, y.train,
       assay = "RNA", 
       slot = "counts",
       save.DEA.folder = save.DEA.folder)
-    
   }
   
   return(res.model)
@@ -477,9 +473,10 @@ NestedCrossValidation <- function(x, y,
   
   names.outer <- names(folds.outer)
   
+  # fold.out.name: FoldL1O_1H1O_1	fold.in.name: FoldL1O_1G3V_1
   NCV.res <- 
     foreach::foreach(fold.out.name = names.outer, .combine='rbind') %:% # fold.out.name <- names.outer[1]
-    foreach::foreach(fold.in.name = names(folds.outer.inner[[fold.out.name]]), .combine='rbind') %dopar% { # fold.in.name <- names.inner[1]
+    foreach::foreach(fold.in.name = names(folds.outer.inner[[fold.out.name]]), .combine='rbind') %dopar% { # fold.in.name <- names(folds.outer.inner[[fold.out.name]])[1]
       message(paste0("fold.out.name: ", fold.out.name, "\tfold.in.name: ", fold.in.name))
       
       # Get the indexes of outer fold
@@ -637,10 +634,16 @@ CrossValidation <- function(x, y,
       list.tmp <- list()
       for (hp in colnames(hyperparams.best.per.fold)){
         list.tmp[[hp]] <- c(hyperparams.best.per.fold[fold.out.name, hp])
+        if (is.na(list.tmp[[hp]])){
+          if (method == "LR"){
+            list.tmp[[hp]] <- DEFAULT.LR.HYPERPARAMS[[hp]]
+          } else if (method == "signature"){
+            list.tmp[[hp]] <- DEFAULT.SIGNATURE.HYPERPARAMS[[hp]]
+          }
+        }
       }
       hyperparams.list[[fold.out.name]] <- list.tmp
     }
-    
     if (!is.null(hyperparams)){
       warning("Cannot have both `hyperparams` and `hyperparams.best.per.fold` defined. Continue with hyperparams.best.per.fold")
     }
@@ -664,7 +667,8 @@ CrossValidation <- function(x, y,
   }
   
   CV.res <- 
-    foreach::foreach(fold.out.name = names.outer, .combine='rbind') %dopar% { # fold.out.name <- names.outer[1]
+    foreach::foreach(fold.out.name = names.outer, .combine='rbind') %dopar% { # fold.out.name <- names.outer[11]
+      message(paste0("fold.out.name: ", fold.out.name))
       
       # Get the indexes of outer fold
       fold.out <- folds.outer[[fold.out.name]]

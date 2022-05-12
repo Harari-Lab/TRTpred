@@ -115,6 +115,7 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
   remove.regex.list <- list()
   if (!is.null(remove_regex)){
     remove_regex <- c(remove_regex)
+    remove_regex[remove_regex %in% c("none", "NULL")] <- ""
     for (rm.reg in remove_regex){
       if (rm.reg == ""){
         remove.regex.list[["raw"]] <- "none"
@@ -128,7 +129,7 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
   
   signature.list <- list()
   
-  for (rm.reg.name in names(remove.regex.list)){
+  for (rm.reg.name in names(remove.regex.list)){ # rm.reg.name <- names(remove.regex.list)[1]
     rm.reg <- remove.regex.list[[rm.reg.name]]
     if (rm.reg == "none" | rm.reg == ""){
       rm.reg <- NULL
@@ -142,10 +143,12 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
       pval_limit = pval_limit, 
       log2FC_limits = log2FC_limits,
       remove_regex = rm.reg)
+    signature$up <- signature$up[!is.na(signature$up)]
+    signature$down <- signature$down[!is.na(signature$down)]
     
     if ("up" %in% sides){
       signature.s <- "up"
-      previous.length <- 0
+      previous.length <- -1
       for (signature.l in lengths){
         signature.key <- paste(rm.reg.name, signature.s, signature.l, sep = "_")
         
@@ -157,6 +160,7 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
         if (length(signature.tmp$up) > previous.length){
           signature.list[[signature.key]] <- signature.tmp
           previous.length <- length(signature.tmp$up)
+          previous.length <- ifelse(previous.length == 0, -1, previous.length)
         } else {
           break
         }
@@ -164,7 +168,7 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
     } 
     if ("down" %in% sides){
       signature.s <- "down"
-      previous.length <- 0
+      previous.length <- -1
       for (signature.l in lengths){
         signature.key <- paste(rm.reg.name, signature.s, signature.l, sep = "_")
         
@@ -176,6 +180,7 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
         if (length(signature.tmp$down) > previous.length){
           signature.list[[signature.key]] <- signature.tmp
           previous.length <- length(signature.tmp$down)
+          previous.length <- ifelse(previous.length == 0, -1, previous.length)
         } else {
           break
         }
@@ -183,7 +188,7 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
     } 
     if ("both" %in% sides){
       signature.s <- "both"
-      previous.length <- 0
+      previous.length <- -1
       for (signature.l in lengths){
         signature.key <- paste(rm.reg.name, signature.s, signature.l, sep = "_")
         
@@ -196,6 +201,7 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
         if ((length(signature.tmp$up) + length(signature.tmp$down)) > previous.length){
           signature.list[[signature.key]] <- signature.tmp
           previous.length <- length(signature.tmp$up) + length(signature.tmp$down)
+          previous.length <- ifelse(previous.length == 0, -1, previous.length)
         } else {
           break
         }
@@ -296,6 +302,12 @@ SignatureCrossValidation <- function(data.train, y.label,
   # Part 3: Compute signature score
   message("Compute Signature Scores")
   
+  # Create empty data-frames containers
+  signature.score.train <- data.frame(row.names = colnames(data.train@assays[["RNA"]]@counts))
+  if(!is.null(data.test)){
+    signature.score.test <- data.frame(row.names = colnames(data.test@assays[["RNA"]]@counts))
+  }
+  
   # pre-compute ranks
   ranks.matrices.train <- list()
   ranks.matrices.test <- list()
@@ -324,21 +336,6 @@ SignatureCrossValidation <- function(data.train, y.label,
   rm(X.train)
   if (!is.null(data.test)){
     rm(X.test)
-  }
-
-  
-  # Create empty data-frames containers
-  signature.score.train <- data.frame(row.names = colnames(data.train@assays[["RNA"]]@counts))
-  if(!is.null(data.test)){
-    signature.score.test <- data.frame(row.names = colnames(data.test@assays[["RNA"]]@counts))
-  }
-  
-  # Get the output labels 
-  y.train <- as.factor(data.train@meta.data[, y.label])
-  y.train <- y.train == levels(y.train)[1]
-  if(!is.null(data.test)){
-    y.test <- as.factor(data.test@meta.data[, y.label])
-    y.test <- y.test == levels(y.test)[1]
   }
   
   for (ss.method in c(signature.methods)){
@@ -374,47 +371,61 @@ SignatureCrossValidation <- function(data.train, y.label,
       saveRDS(signature.score.test, file = save.DEA.file)
     }
   }
-  # saveRDS(signature.score.train, file = "/Users/re8587/Desktop/signature_score_train_test_02.rds")
-  # saveRDS(signature.score.test, file = "/Users/re8587/Desktop/signature_score_test_test_02.rds")
   
   # Part 4: Compute accuracies: 
   message("Compute Accuracies")
+  
+  # Get the output labels 
+  y.train <- as.factor(data.train@meta.data[, y.label])
+  y.train <- y.train == levels(y.train)[1]
+  if(!is.null(data.test)){
+    y.test <- as.factor(data.test@meta.data[, y.label])
+    y.test <- y.test == levels(y.test)[1]
+  }
+  
   res.inner <- data.frame()
-  for (hyper.col in colnames(signature.score.train)){ # hyper.col <- colnames(signature.score.train)[1]
-    if (!is.null(data.test)){
-      x.test = signature.score.test[,hyper.col]
-    } else {
-      x.test = NULL
-    }
-    pred.res <- res <- GetSignaturePrediction(
-      x.train = signature.score.train[,hyper.col], 
-      x.test = x.test,
-      method = "greedy", 
-      ground.truth = y.train)
+  for (hyper.col in colnames(signature.score.train)){
     
-    # Get train & test predictions: 
-    y.train.pred <- pred.res$y.train.pred
-    y.test.pred <- pred.res$y.test.pred
-    
-    # Get training accuracy:
-    res.train.metrics <- GetMetricsBinary(ground_truth = y.train, preds = y.train.pred)
-    res.train.metrics.acc <- GetAccuracyMetrics(tp = res.train.metrics$TP, 
+    if (!all(is.na(signature.score.train[,hyper.col]))){
+      if (!is.null(data.test)){
+        x.test = signature.score.test[,hyper.col]
+      } else {
+        x.test = NULL
+      }
+      pred.res <- GetSignaturePrediction(
+        x.train = signature.score.train[,hyper.col], 
+        x.test = x.test,
+        method = "greedy", 
+        ground.truth = y.train)
+      
+      # Get train & test predictions: 
+      y.train.pred <- pred.res$y.train.pred
+      y.test.pred <- pred.res$y.test.pred
+      
+      # Get training accuracy:
+      res.train.metrics <- GetMetricsBinary(ground_truth = y.train, preds = y.train.pred)
+      res.train.metrics.acc <- GetAccuracyMetrics(tp = res.train.metrics$TP, 
                                                   fp = res.train.metrics$FP, 
                                                   tn = res.train.metrics$TN, 
                                                   fn = res.train.metrics$FN)
-    
-    # Get testing accuracy
-    if (!is.null(data.test)){
-      res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
-      res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
-                                                 fp = res.test.metrics$FP, 
-                                                 tn = res.test.metrics$TN, 
-                                                 fn = res.test.metrics$FN)
+      
+      # Get testing accuracy
+      if (!is.null(data.test)){
+        res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
+        res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
+                                                   fp = res.test.metrics$FP, 
+                                                   tn = res.test.metrics$TN, 
+                                                   fn = res.test.metrics$FN)
+      } else {
+        res.test.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
+        res.test.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
+      }
     } else {
+      res.train.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
+      res.train.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
       res.test.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
       res.test.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
     }
-    
     
     # Save results in cv.df.outer.inner:
     # TODO split "_" replace by "::" maybe..
@@ -423,12 +434,7 @@ SignatureCrossValidation <- function(data.train, y.label,
       warning("What have you done... str.split.res is more than 4 elements... please check")
     }
     
-    # TODO
-    # y.label, 
-    # y.sample = NULL, 
-    # y.covariates = NULL, 
-    # DEA.method = DEA.METHODS, 
-    # ASSAY AND SLOT
+    # TODO add y.label, y.sample = NULL, y.covariates = NULL, DEA.method = DEA.METHODS, ASSAY AND SLOT
     res.info <- list(
       "DEA.method" = DEA.method,
       "signature.methods" = str.split.res[1],
