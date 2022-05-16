@@ -339,7 +339,6 @@ SignatureCrossValidation <- function(data.train, y.label,
   }
   
   for (ss.method in c(signature.methods)){
-    
     # Get the training signature score
     signature.score.tmp <- GetSignatureScore(
       object = data.train, 
@@ -432,6 +431,8 @@ SignatureCrossValidation <- function(data.train, y.label,
     str.split.res <- strsplit(x =  hyper.col, split = "_")[[1]]
     if (length(str.split.res) > 4){
       warning("What have you done... str.split.res is more than 4 elements... please check")
+      cat(hyper.col)
+      cat("\n")
     }
     
     # TODO add y.label, y.sample = NULL, y.covariates = NULL, DEA.method = DEA.METHODS, ASSAY AND SLOT

@@ -79,7 +79,9 @@ RunSigScoreAverage <- function(X, signature, scale = F){
   res <- data.frame(row.names = colnames(X))
   for (signature.key in names(signature)){
     s_up <- signature[[signature.key]]$up
+    if (length(s_up) == 0){s_up <- NULL}
     s_down <- signature[[signature.key]]$down
+    if (length(s_down) == 0){s_down <- NULL}
     
     if (!is.null(s_up)){
       s_up <- s_up[!is.na(s_up)]
@@ -136,7 +138,7 @@ RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){
           paste0(signature[[signature.key]]$up, "+"))
       } else {
         signature.input[[signature.key]] <- c(
-          signature.input[[signature.key]], c(NA))
+          signature.input[[signature.key]], as.character())
       }
     }
     if ("down" %in% names(signature[[signature.key]])){
@@ -146,14 +148,14 @@ RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){
           paste0(signature[[signature.key]]$down, "-"))
       } else {
         signature.input[[signature.key]] <- c(
-          signature.input[[signature.key]], c(NA))
+          signature.input[[signature.key]], as.character())
       }
     }
   }
   
   missing.signatures <- c()
   for (siganture.key in names(signature.input)){
-    if (all(is.na(signature.input[[siganture.key]]))){
+    if (length(signature.input[[siganture.key]]) == 0){
       signature.input[[siganture.key]] <- NULL
       missing.signatures <- c(missing.signatures, siganture.key)
     }
@@ -166,9 +168,11 @@ RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){
   } 
   if (length(missing.signatures) > 0){
     for (col_ in missing.signatures){
-      res[[col_]] <- NA
+      res[[col_]] <- 0
     }
   }
+  
+  colnames(res) <- gsub("_UCell$", "", colnames(res))
   
   return(res)
 }
@@ -205,11 +209,9 @@ RunSigScoreAUCell <- function(X, signature, ranks = NULL, scale = F){
     }
   }
   
-  missing.signatures <- c()
   for (siganture.key in names(signature.input)){
     if (length(signature.input[[siganture.key]]) == 0){
       signature.input[[siganture.key]] <- NULL
-      missing.signatures <- c(missing.signatures, siganture.key)
     }
   }
   
@@ -221,28 +223,20 @@ RunSigScoreAUCell <- function(X, signature, ranks = NULL, scale = F){
     
     
     res <- data.frame(t(AUCell::getAUC(res)))
-    
-    for (signature.key in names(signature)){
-      signature.key.new.up <-   paste(signature.key, "up",   sep="_")
-      signature.key.new.down <- paste(signature.key, "down", sep="_")
-      
-      if (!signature.key.new.up %in% colnames(res)){
-        res[[signature.key.new.up]] <- 0
-      }
-      if (!signature.key.new.down %in% colnames(res)){
-        res[[signature.key.new.down]] <- 0
-      }
-      
-      res[[signature.key]] <- res[[signature.key.new.up]] - res[[signature.key.new.down]]
-    }
   } 
   
-  if (length(missing.signatures) > 0){
-    missing.signatures.keys <- gsub("_((up)|(down))$", "", missing.signatures)
-    missing.signatures.keys <- unique(missing.signatures.keys)
-    for (col_ in missing.signatures.keys){
-      res[[col_]] <- NA
+  for (signature.key in names(signature)){
+    signature.key.new.up <-   paste(signature.key, "up",   sep="_")
+    signature.key.new.down <- paste(signature.key, "down", sep="_")
+    
+    if (!signature.key.new.up %in% colnames(res)){
+      res[[signature.key.new.up]] <- 0
     }
+    if (!signature.key.new.down %in% colnames(res)){
+      res[[signature.key.new.down]] <- 0
+    }
+    
+    res[[signature.key]] <- res[[signature.key.new.up]] - res[[signature.key.new.down]]
   }
   
   res <- res[, names(signature), drop = F]
@@ -269,6 +263,8 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
     ranks = singscore::rankGenes(as.matrix(X))
   }
   
+  missing.signature <- c()
+  
   signature.one.sided.up <- list()
   signature.one.sided.down <- list()
   signature.input.up <- list()
@@ -276,23 +272,62 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
   for (signature.key in names(signature)){
     if (length(names(signature[[signature.key]])) == 1){
       if ("up" %in% names(signature[[signature.key]])){
-        signature.one.sided.up[[signature.key]] <- 
-          GSEABase::GeneSet(signature[[signature.key]]$up, setName = signature.key)
+        if (length(signature[[signature.key]]$up) > 0){
+          signature.one.sided.up[[signature.key]] <- 
+            GSEABase::GeneSet(signature[[signature.key]]$up, setName = signature.key)
+        } else {
+          missing.signature <- c(missing.signature, signature.key)
+        }
       } else {
-        signature.one.sided.down[[signature.key]] <- 
-          GSEABase::GeneSet(signature[[signature.key]]$down, setName = signature.key)
+        if (length(signature[[signature.key]]$down) > 0){
+          signature.one.sided.down[[signature.key]] <- 
+            GSEABase::GeneSet(signature[[signature.key]]$down, setName = signature.key)
+        } else {
+          missing.signature <- c(missing.signature, signature.key)
+        }
       }
     } else {
-      signature.input.up[[signature.key]] <- 
-        GSEABase::GeneSet(signature[[signature.key]]$up, setName = signature.key)
-      signature.input.down[[signature.key]] <- 
-        GSEABase::GeneSet(signature[[signature.key]]$down, setName = signature.key)
+      if ((length(signature[[signature.key]]$up) * length(signature[[signature.key]]$down)) > 0){
+        signature.input.up[[signature.key]] <- 
+          GSEABase::GeneSet(signature[[signature.key]]$up, setName = signature.key)
+        signature.input.down[[signature.key]] <- 
+          GSEABase::GeneSet(signature[[signature.key]]$down, setName = signature.key)
+      } else {
+        if (length(signature[[signature.key]]$up) > 0){
+          signature.one.sided.up[[signature.key]] <- 
+            GSEABase::GeneSet(signature[[signature.key]]$up, setName = signature.key)
+        } else if (length(signature[[signature.key]]$down) > 0){
+          signature.one.sided.down[[signature.key]] <- 
+            GSEABase::GeneSet(signature[[signature.key]]$down, setName = signature.key)
+        } else {
+          missing.signature <- c(missing.signature, signature.key)
+        }
+      }
     }
   }
   signature.one.sided.up <- GSEABase::GeneSetCollection(signature.one.sided.up)
   signature.one.sided.down <- GSEABase::GeneSetCollection(signature.one.sided.down)
   signature.input.up <- GSEABase::GeneSetCollection(signature.input.up)
   signature.input.down <- GSEABase::GeneSetCollection(signature.input.down)
+  
+  if (F){
+    test.up <- list()
+    test.dn <- list()
+    
+    test.up[["test.1"]] <- GSEABase::GeneSet(c("CXCL13", "LAG3", "RBPJ"), setName = "test.1")
+    test.dn[["test.1"]] <- GSEABase::GeneSet(c("TOX", "TNFRSF9", "CTLA4"), setName = "test.1")
+    test.up[["test.2"]] <- GSEABase::GeneSet(c("CXCL13", "LAG3", "RBPJ"), setName = "test.2")
+    test.dn[["test.2"]] <- GSEABase::GeneSet(c("LAG3"), setName = "test.2")
+    test.up <- GSEABase::GeneSetCollection(test.up)
+    test.dn <- GSEABase::GeneSetCollection(test.dn)
+    res.test <- singscore::multiScore(rankData = ranks, 
+                                      upSetColc = test.up, 
+                                      downSetColc = test.dn, 
+                                      centerScore = T, 
+                                      knownDirection = T)
+    res.test <- data.frame(t(res.test$Scores), check.names = F, check.rows = F)
+  }
+  
   
   res <- data.frame(row.names = colnames(X))
   if (length(signature.one.sided.up) > 0){
@@ -301,13 +336,13 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
                                  centerScore = T, 
                                  knownDirection = T)
     if (!is.null(res.tmp$Scores)){
-      res.tmp <- data.frame(t(res.tmp$Scores))
+      res.tmp <- data.frame(t(res.tmp$Scores), check.names = F, check.rows = F)
     } else {
-      res.tmp <- data.frame(row.names = colnames(X))
+      res.tmp <- data.frame(row.names = colnames(X), check.rows = F)
     }
     missing_columns <- names(signature.one.sided.up)[!(names(signature.one.sided.up) %in% colnames(res.tmp))]
     for (col_ in missing_columns){
-      res.tmp[[col_]] <- NA
+      res.tmp[[col_]] <- 0
     }
     res <- cbind(res, res.tmp)
   }
@@ -318,14 +353,14 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
                                  knownDirection = T)
     
     if (!is.null(res.tmp$Scores)){
-      res.tmp <- data.frame(t(res.tmp$Scores))
+      res.tmp <- data.frame(t(res.tmp$Scores), check.names = F, check.rows = F)
       res.tmp <- -res.tmp
     } else {
-      res.tmp <- data.frame(row.names = colnames(X))
+      res.tmp <- data.frame(row.names = colnames(X), check.rows = F)
     }
     missing_columns <- names(signature.one.sided.down)[!(names(signature.one.sided.down) %in% colnames(res.tmp))]
     for (col_ in missing_columns){
-      res.tmp[[col_]] <- NA
+      res.tmp[[col_]] <- 0
     }
     res <- cbind(res, res.tmp)
   }
@@ -336,17 +371,24 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
                                  centerScore = T, 
                                  knownDirection = T)
     if (!is.null(res.tmp$Scores)){
-      res.tmp <- data.frame(t(res.tmp$Scores))
+      res.tmp <- data.frame(t(res.tmp$Scores), check.names = F, check.rows = F)
     } else {
-      res.tmp <- data.frame(row.names = colnames(X))
+      res.tmp <- data.frame(row.names = colnames(X), check.rows = F)
     }
     missing_columns <- names(signature.input.up)[!(names(signature.input.up) %in% colnames(res.tmp))]
     for (col_ in missing_columns){
-      res.tmp[[col_]] <- NA
+      res.tmp[[col_]] <- 0
     }
     res <- cbind(res, res.tmp)
   }
-
+  
+  if (length(missing.signature) > 0){
+    warning(paste0("In RunSigScoreSingscore: Missing genes in signature(s): ",
+                   paste(missing.signature, collapse = ", ")))
+    for (col_ in missing.signature){
+      res[[col_]] <- 0
+    }
+  }
   return(res) 
 }
 

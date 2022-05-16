@@ -396,7 +396,7 @@ RunDESeq2 <- function(mca,
                  fitType = "local", # c("parametric", "local", "mean", "glmGamPoi") 
                  sfType = "poscounts", # c("ratio", "poscounts", "iterate")
                  betaPrior = FALSE # TRUE or FALSE
-                  )
+                )
   }
   
   # note on the parmater selection above: 
