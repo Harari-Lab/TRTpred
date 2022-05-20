@@ -118,7 +118,7 @@ GetAccuracyMetrics <- function(metrics = EVALUATION.METRICS,
 #' 
 #' @export
 GetMccBinary <- function(ground_truth = NULL, preds = NULL, 
-                           tp = NULL, fp = NULL, tn = NULL, fn = NULL){
+                         tp = NULL, fp = NULL, tn = NULL, fn = NULL){
   
   if (is.null(tp)){
     res <- GetMetricsBinary(ground_truth = ground_truth, preds = preds)

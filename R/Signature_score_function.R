@@ -85,14 +85,24 @@ RunSigScoreAverage <- function(X, signature, scale = F){
     
     if (!is.null(s_up)){
       s_up <- s_up[!is.na(s_up)]
-      up_ss <- colSums(X[s_up, ])/length(s_up)
+      if (length(s_up) > 1){
+        up_ss <- colSums(X[s_up, ])/length(s_up)
+      } else {
+        up_ss <- X[s_up, ]
+        warning(paste0("RunSigScoreAverage: strange behaviour: s_up = ", paste(s_up, collapse = ", ")))
+      }
     } else {
       up_ss <- replicate(n = dim(X)[2], expr = 0)
     } 
     
     if (!is.null(s_down)){
       s_down <- s_down[!is.na(s_down)]
-      down_ss <- colSums(X[s_down, ])/length(s_down)
+      if (length(s_down) > 1){
+        down_ss <- colSums(X[s_down, ])/length(s_down)
+      } else {
+        down_ss <- X[s_down, ]
+        warning(paste0("RunSigScoreAverage: strange behaviour: s_down = ", paste(s_up, collapse = ", ")))
+      }
     } else {
       down_ss <- replicate(n = dim(X)[2], expr = 0)
     } 

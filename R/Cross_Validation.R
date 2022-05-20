@@ -473,7 +473,6 @@ NestedCrossValidation <- function(x, y,
   
   names.outer <- names(folds.outer)
   
-  # fold.out.name: FoldL1O_1H1O_1	fold.in.name: FoldL1O_1G3V_1
   NCV.res <- 
     foreach::foreach(fold.out.name = names.outer, .combine='rbind') %:% # fold.out.name <- names.outer[1]
     foreach::foreach(fold.in.name = names(folds.outer.inner[[fold.out.name]]), .combine='rbind') %dopar% { # fold.in.name <- names(folds.outer.inner[[fold.out.name]])[1]
