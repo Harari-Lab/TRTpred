@@ -171,6 +171,9 @@ TrainModel <- function(x.train, y.train,
       save.DEA.folder = save.DEA.folder)
   }
   
+  res.model[["n.data.input"]] <- nrow(x.train)
+  res.model[["p.data.input"]] <- ncol(x.train)
+  
   return(res.model)
 }
 
