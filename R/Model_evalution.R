@@ -76,16 +76,18 @@ GetAccuracyMetrics <- function(metrics = EVALUATION.METRICS,
     res[["accuracy"]] <- (tp + tn) / N
   }
   if ("mcc" %in% metrics){ # https://en.wikipedia.org/wiki/Phi_coefficient
+    # If we use the "normal" equation: 
+    # We get and error: In (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn) : NA produced by integer overflow
+    # So I use this one instead:
     S <- (tp + fn) / N
     P <- (tp + fp) / N
-    nominator <-  ((tp/N) - (S * P))
-    denominator <- sqrt((S * P) * (1 - S) * (1 - P))
+    nominator <-  (tp/N) - (S * P)
+    denominator <- (P * S) * (1 - S) * (1 - P)
     if (denominator == 0){
-      res[["mcc"]] <- NA
+      res[["mcc"]] <- 0
     } else {
-      res[["mcc"]] <- nominator / denominator
+      res[["mcc"]] <- nominator / sqrt(denominator)
     }
-    
   }
   if ("F1" %in% metrics){
     res[["F1"]] <- (2*tp) / ((2*tp) + fp + fn)
@@ -128,11 +130,18 @@ GetMccBinary <- function(ground_truth = NULL, preds = NULL,
     fn <- res$FN
   }
   
-  N <- tp + fp + tn + fn
+  # If we use the "normal" equation: 
+  # We get and error: In (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn) : NA produced by integer overflow
+  # So I use this one instead:
   S <- (tp + fn) / N
   P <- (tp + fp) / N
-  
-  res <- ((tp/N) - (S * P)) / sqrt((S * P) * (1 - S) * (1 - P))
+  nominator <-  (tp/N) - (S * P)
+  denominator <- (P * S) * (1 - S) * (1 - P)
+  if (denominator == 0){
+    res[["mcc"]] <- 0
+  } else {
+    res[["mcc"]] <- nominator / sqrt(denominator)
+  }
   
   return(res)
 }

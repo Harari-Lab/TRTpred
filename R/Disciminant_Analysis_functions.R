@@ -47,10 +47,13 @@ DiscrAnalysisBinary <- function(x, y, method = DA.METHODS,
     
     # Get the raw p-values
     test.res <- sapply(X = colnames(x), function(col){
-      WRS.res <- stats::wilcox.test(x = x.T[, col], y = x.F[, col], correct = F)
+      WRS.res <- stats::wilcox.test(x = x.T[, col], y = x.F[, col], 
+                                    alternative = "two.sided", 
+                                    correct = F, exact = F, paired = F)
       # list("PC" = x, "statistic" = WRS.res$statistic, "p.value" = WRS.res$p.value)
       WRS.res$p.value
     })
+    
     test.res <- data.frame(test.res)
     colnames(test.res) <- c("p_val")
     
