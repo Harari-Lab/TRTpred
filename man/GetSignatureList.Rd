@@ -9,6 +9,7 @@ GetSignatureList(
   lengths,
   sides,
   remove_regex = NULL,
+  gene.selection.methods = c("logFC"),
   pval_col = "padj",
   log2FC_col = "logFC",
   pval_limit = 0.05,
@@ -27,6 +28,10 @@ up and down-regulated genes).}
 \item{remove_regex}{character vector; A list of regex that defines genes names to remove.
 if NULL or "none": No genes are removed. 
 Default = NULL}
+
+\item{gene.selection.methods}{character vector; signature gene selection method.
+possible values are "logFC" (select from logFC) or "pval" (select from pval)
+Default = c("logFC")}
 
 \item{pval_col}{character: The name of the p adjusted column}
 

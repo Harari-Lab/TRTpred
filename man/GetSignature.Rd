@@ -11,6 +11,7 @@ GetSignature(
   log2FC_col = "logFC",
   pval_limit = 0.05,
   log2FC_limits = c(0, 0),
+  gene.selection.method = "logFC",
   remove_regex = NULL
 )
 }
@@ -25,6 +26,10 @@ GetSignature(
 
 \item{log2FC_limits}{vector of numeric: The lower and upper limits of the 
 logFC column to define the up and down regulated genes.}
+
+\item{gene.selection.method}{character; signature gene selection method.
+possible values are "logFC" (select from logFC) or "pval" (select from pval)
+Default = "logFC"}
 
 \item{remove_regex}{character: Regular expression selecting genes to remove 
 from the up and down gene-sets}

@@ -19,9 +19,10 @@ TrainModel(
   DA.method = c("none", DA.METHODS),
   DA.p.adjust.method = P.ADJUST.METHODS,
   DA.p.val.threshold = 0.05,
+  DA.event.per.variable = NULL,
   LR.prob.threhsold = 0.5,
   DEA.method = DEA.METHODS,
-  save.DEA.folder
+  save.DEA.folder = NULL
 )
 }
 \arguments{
@@ -70,6 +71,11 @@ discriminant analysis.
 Default = "fdr"}
 
 \item{DA.p.val.threshold}{numeric; The p-val significant threshold.}
+
+\item{DA.event.per.variable, }{numerical; The number of event per variable threshold
+A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
+a way to select a fewer amount of variables for a fixed amount of samples. 
+Default = NULL (no selection on EPV)}
 
 \item{LR.prob.threhsold}{numeric; The probability threshold for the logitic regression}
 

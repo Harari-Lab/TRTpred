@@ -9,7 +9,8 @@ DiscrAnalysisBinary(
   y,
   method = DA.METHODS,
   p.adjust.method = P.ADJUST.METHODS,
-  p.val.threshold = 0.05
+  p.val.threshold = 0.05,
+  event.per.variable = NULL
 )
 }
 \arguments{
@@ -27,6 +28,11 @@ Default = "fdr"}
 
 \item{p.val.threshold, }{numerical; The p-val significant threshold 
 Default = 0.05}
+
+\item{event.per.variable, }{numerical; The number of event per variable threshold
+A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
+a way to select a fewer amount of variables for a fixed amount of samples. 
+Default = NULL (no selection on EPV)}
 }
 \value{
 data.frame. The results form the discriminant analysis. 

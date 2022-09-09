@@ -11,6 +11,7 @@ SignatureCrossValidation(
   y.sample = NULL,
   y.covariates = NULL,
   DEA.method = DEA.METHODS,
+  signature.selection.method = c("logFC"),
   signature.lengths = c("20"),
   signature.sides = c("both"),
   signature.rm.regex = NULL,
@@ -36,6 +37,10 @@ Default = NULL i.e. no covariates}
 \item{DEA.method}{character; Differential-Expression-Analysis method name. 
 possible values are possible values in runDEA()
 Default = "wilcox" from Seurat::FindMarkers()}
+
+\item{signature.selection.method}{character vector; signatuire gene selection method.
+possible values are "logFC" (select from logFC) or "pval" (select from pval)
+Default = c("logFC")}
 
 \item{signature.lengths}{numerical vector; Signature lengths}
 
