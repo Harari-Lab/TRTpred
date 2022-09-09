@@ -7,6 +7,7 @@ suppressMessages(require(UCell))
 suppressMessages(require(singscore))
 suppressMessages(require(stats))
 
+
 LIMMA.METHODS <- c("limma_voom", "limma_trend")
 EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
 DESEQ.METHODS <- c("DESeq2_Wald", "DESeq2_LRT")
@@ -14,6 +15,8 @@ SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, LIMMA.METHODS, EDGER.METHODS)
 
 SIGNATURE.SCORE.METHODS <- c("average", "UCell", "AUCell", "singscore")
+
+SIGNATURE.SELECTION.METHODS <- c("logFC", "pval")
 
 SIGNATURE.SIDE <- c("both", "up", "down")
 
@@ -27,6 +30,9 @@ SIGNATURE.SIDE <- c("both", "up", "down")
 #' @param pval_limit numeric: The upper significance limit of the adjusted p-value
 #' @param log2FC_limits vector of numeric: The lower and upper limits of the 
 #' logFC column to define the up and down regulated genes.
+#' @param gene.selection.method character; signature gene selection method.
+#' possible values are "logFC" (select from logFC) or "pval" (select from pval)
+#' Default = "logFC"
 #' @param remove_regex character: Regular expression selecting genes to remove 
 #' from the up and down gene-sets
 #' 
@@ -38,6 +44,7 @@ SIGNATURE.SIDE <- c("both", "up", "down")
 GetSignature <- function(df, n_genes = 20, 
                          pval_col = "padj", log2FC_col = "logFC", 
                          pval_limit = 0.05, log2FC_limits = c(0, 0),
+                         gene.selection.method = "logFC",
                          remove_regex = NULL){
   
   # Santity check
@@ -53,24 +60,35 @@ GetSignature <- function(df, n_genes = 20,
   
   # Keep sig genes
   df <- df[df[[pval_col]] <= pval_limit, ]
-  df <- df[order(df[[log2FC_col]], decreasing = T), ]
   
+  # Remove genes recognized by remove_regex
   if (!is.null(remove_regex)){
     mask.2.rm <- grepl(pattern = remove_regex, x = rownames(df))
     df <- df[!mask.2.rm,]
   }
   
+  # order the genes
+  if (gene.selection.method == "logFC"){
+    df <- df[order(df[[log2FC_col]], decreasing = T), ]
+  } else if (gene.selection.method == "pval"){
+    df <- df[order(df[[pval_col]], decreasing = F), ]
+  } else{
+    warning(paste0("GetSignature: gene.selection.method = ", gene.selection.method, " not recognized"))
+  }
+  
   up_genes <- rownames(df[df[[log2FC_col]] >= log2FC_limits[2], ])
   dn_genes <- rownames(df[df[[log2FC_col]] <= log2FC_limits[1], ])
   
-  if (length(dn_genes) > 0){
-    dn_genes <- dn_genes[length(dn_genes):1]
+  if (gene.selection.method == "logFC"){
+    if (length(dn_genes) > 0){
+      dn_genes <- dn_genes[length(dn_genes):1]
+    }
   }
+  
   
   if (n_genes > length(up_genes)){
     warning("n_genes is larger than the number of up regulated genes")
   }
-  
   if (n_genes > length(dn_genes)){
     warning("n_genes is larger than the number of down regulated genes")
   }
@@ -93,6 +111,9 @@ GetSignature <- function(df, n_genes = 20,
 #' @param remove_regex character vector; A list of regex that defines genes names to remove.
 #' if NULL or "none": No genes are removed. 
 #' Default = NULL
+#' @param gene.selection.methods character vector; signature gene selection method.
+#' possible values are "logFC" (select from logFC) or "pval" (select from pval)
+#' Default = c("logFC")
 #' @param pval_col character: The name of the p adjusted column 
 #' @param log2FC_col character: The name of the Log Fold Change column 
 #' @param pval_limit numeric: The upper significance limit of the adjusted p-value
@@ -105,11 +126,15 @@ GetSignature <- function(df, n_genes = 20,
 #' 
 #' @export
 GetSignatureList <- function(df, lengths, sides, remove_regex = NULL, 
+                             gene.selection.methods = c("logFC"),
                              pval_col = "padj", log2FC_col = "logFC", 
                              pval_limit = 0.05, log2FC_limits = c(0, 0)){
   
   if (!all(sides %in% SIGNATURE.SIDE)){
     stop("GetSignatureList: sides input not recognized: Possible values are 'up', 'down', 'both'")
+  }
+  if(!all(gene.selection.methods %in% SIGNATURE.SELECTION.METHODS)){
+    stop(paste0("GetSignatureList: methods input not recognized: Possible values are :", paste(SIGNATURE.SELECTION.METHODS, collapse = ", ")))
   }
   
   remove.regex.list <- list()
@@ -135,75 +160,78 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
       rm.reg <- NULL
     }
     
-    signature <- GetSignature(
-      df = df, 
-      n_genes = max(lengths), 
-      pval_col = pval_col, 
-      log2FC_col = log2FC_col, 
-      pval_limit = pval_limit, 
-      log2FC_limits = log2FC_limits,
-      remove_regex = rm.reg)
-    signature$up <- signature$up[!is.na(signature$up)]
-    signature$down <- signature$down[!is.na(signature$down)]
-    
-    if ("up" %in% sides){
-      signature.s <- "up"
-      previous.length <- -1
-      for (signature.l in lengths){
-        signature.key <- paste(rm.reg.name, signature.s, signature.l, sep = "_")
-        
-        signature.tmp <- signature
-        signature.tmp$down <- NULL
-        signature.tmp$up <- signature.tmp$up[1:signature.l]
-        signature.tmp$up <- signature.tmp$up[!is.na(signature.tmp$up)]
-        
-        if (length(signature.tmp$up) > previous.length){
-          signature.list[[signature.key]] <- signature.tmp
-          previous.length <- length(signature.tmp$up)
-          previous.length <- ifelse(previous.length == 0, -1, previous.length)
-        } else {
-          break
+    for (selection.method in gene.selection.methods){
+      signature <- GetSignature(
+        df = df, 
+        n_genes = max(lengths), 
+        pval_col = pval_col, 
+        log2FC_col = log2FC_col, 
+        pval_limit = pval_limit, 
+        log2FC_limits = log2FC_limits,
+        gene.selection.method = selection.method,
+        remove_regex = rm.reg)
+      signature$up <- signature$up[!is.na(signature$up)]
+      signature$down <- signature$down[!is.na(signature$down)]
+      
+      if ("up" %in% sides){
+        signature.s <- "up"
+        previous.length <- -1
+        for (signature.l in lengths){
+          signature.key <- paste(rm.reg.name, selection.method, signature.s, signature.l, sep = "_")
+          
+          signature.tmp <- signature
+          signature.tmp$down <- NULL
+          signature.tmp$up <- signature.tmp$up[1:signature.l]
+          signature.tmp$up <- signature.tmp$up[!is.na(signature.tmp$up)]
+          
+          if (length(signature.tmp$up) > previous.length){
+            signature.list[[signature.key]] <- signature.tmp
+            previous.length <- length(signature.tmp$up)
+            previous.length <- ifelse(previous.length == 0, -1, previous.length)
+          } else {
+            break
+          }
         }
-      }
-    } 
-    if ("down" %in% sides){
-      signature.s <- "down"
-      previous.length <- -1
-      for (signature.l in lengths){
-        signature.key <- paste(rm.reg.name, signature.s, signature.l, sep = "_")
-        
-        signature.tmp <- signature
-        signature.tmp$up <- NULL
-        signature.tmp$down <- signature.tmp$down[1:signature.l]
-        signature.tmp$down <- signature.tmp$down[!is.na(signature.tmp$down)]
-        
-        if (length(signature.tmp$down) > previous.length){
-          signature.list[[signature.key]] <- signature.tmp
-          previous.length <- length(signature.tmp$down)
-          previous.length <- ifelse(previous.length == 0, -1, previous.length)
-        } else {
-          break
+      } 
+      if ("down" %in% sides){
+        signature.s <- "down"
+        previous.length <- -1
+        for (signature.l in lengths){
+          signature.key <- paste(rm.reg.name, selection.method, signature.s, signature.l, sep = "_")
+          
+          signature.tmp <- signature
+          signature.tmp$up <- NULL
+          signature.tmp$down <- signature.tmp$down[1:signature.l]
+          signature.tmp$down <- signature.tmp$down[!is.na(signature.tmp$down)]
+          
+          if (length(signature.tmp$down) > previous.length){
+            signature.list[[signature.key]] <- signature.tmp
+            previous.length <- length(signature.tmp$down)
+            previous.length <- ifelse(previous.length == 0, -1, previous.length)
+          } else {
+            break
+          }
         }
-      }
-    } 
-    if ("both" %in% sides){
-      signature.s <- "both"
-      previous.length <- -1
-      for (signature.l in lengths){
-        signature.key <- paste(rm.reg.name, signature.s, signature.l, sep = "_")
-        
-        signature.tmp <- signature
-        signature.tmp$down <- signature.tmp$down[1:signature.l]
-        signature.tmp$down <- signature.tmp$down[!is.na(signature.tmp$down)]
-        signature.tmp$up <- signature.tmp$up[1:signature.l]
-        signature.tmp$up <- signature.tmp$up[!is.na(signature.tmp$up)]
-        
-        if ((length(signature.tmp$up) + length(signature.tmp$down)) > previous.length){
-          signature.list[[signature.key]] <- signature.tmp
-          previous.length <- length(signature.tmp$up) + length(signature.tmp$down)
-          previous.length <- ifelse(previous.length == 0, -1, previous.length)
-        } else {
-          break
+      } 
+      if ("both" %in% sides){
+        signature.s <- "both"
+        previous.length <- -1
+        for (signature.l in lengths){
+          signature.key <- paste(rm.reg.name, selection.method, signature.s, signature.l, sep = "_")
+          
+          signature.tmp <- signature
+          signature.tmp$down <- signature.tmp$down[1:signature.l]
+          signature.tmp$down <- signature.tmp$down[!is.na(signature.tmp$down)]
+          signature.tmp$up <- signature.tmp$up[1:signature.l]
+          signature.tmp$up <- signature.tmp$up[!is.na(signature.tmp$up)]
+          
+          if ((length(signature.tmp$up) + length(signature.tmp$down)) > previous.length){
+            signature.list[[signature.key]] <- signature.tmp
+            previous.length <- length(signature.tmp$up) + length(signature.tmp$down)
+            previous.length <- ifelse(previous.length == 0, -1, previous.length)
+          } else {
+            break
+          }
         }
       }
     }
@@ -231,6 +259,9 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
 #' @param DEA.method character; Differential-Expression-Analysis method name. 
 #' possible values are possible values in runDEA()
 #' Default = "wilcox" from Seurat::FindMarkers()
+#' @param signature.selection.method character vector; signatuire gene selection method.
+#' possible values are "logFC" (select from logFC) or "pval" (select from pval)
+#' Default = c("logFC")
 #' @param signature.lengths numerical vector; Signature lengths
 #' @param signature.sides character vector; Signature sides. Possible values ar
 #' "up" (up-regulated genes), "down" (down-regulated genes) and "both" (both up 
@@ -253,6 +284,7 @@ SignatureCrossValidation <- function(data.train, y.label,
                                      y.sample = NULL, 
                                      y.covariates = NULL, 
                                      DEA.method = DEA.METHODS, 
+                                     signature.selection.method = c("logFC"),
                                      signature.lengths = c("20"), 
                                      signature.sides = c("both"), 
                                      signature.rm.regex = NULL,
@@ -267,6 +299,9 @@ SignatureCrossValidation <- function(data.train, y.label,
   }
   if (!all(signature.sides %in% SIGNATURE.SIDE)){
     stop("GetSignatureList: sides input not recognized: Possible values are 'up', 'down', 'both'")
+  }
+  if(!all(signature.selection.method %in% SIGNATURE.SELECTION.METHODS)){
+    stop(paste0("GetSignatureList: signature.selection.method input not recognized: Possible values are :", paste(SIGNATURE.SELECTION.METHODS, collapse = ", ")))
   }
   
   # Part 1: Differential Gene expression Analysis
@@ -295,6 +330,7 @@ SignatureCrossValidation <- function(data.train, y.label,
     log2FC_col = "logFC", 
     pval_limit = 0.05, 
     log2FC_limits = c(0, 0), 
+    gene.selection.methods = signature.selection.method,
     lengths = signature.lengths, 
     sides = signature.sides,
     remove_regex = signature.rm.regex)
@@ -338,13 +374,13 @@ SignatureCrossValidation <- function(data.train, y.label,
     rm(X.test)
   }
   
-  for (ss.method in c(signature.methods)){
+  for (ss.method in c(signature.methods)){ # ss.method <- c(signature.methods)[1]
     # Get the training signature score
     signature.score.tmp <- GetSignatureScore(
       object = data.train, 
       assay = "RNA", slot = "counts",
       ranks = ranks.matrices.train[[ss.method]],
-      signature = signature.list, # test.list
+      signature = signature.list, 
       method = ss.method)
     colnames(signature.score.tmp) <- paste(ss.method, colnames(signature.score.tmp), sep = "_")
     signature.score.train <- cbind(signature.score.train, signature.score.tmp)
@@ -383,7 +419,7 @@ SignatureCrossValidation <- function(data.train, y.label,
   }
   
   res.inner <- data.frame()
-  for (hyper.col in colnames(signature.score.train)){
+  for (hyper.col in colnames(signature.score.train)){ # hyper.col <- colnames(signature.score.train)[1]
     
     if (!all(is.na(signature.score.train[,hyper.col]))){
       if (!is.null(data.test)){
@@ -429,7 +465,7 @@ SignatureCrossValidation <- function(data.train, y.label,
     # Save results in cv.df.outer.inner:
     # TODO split "_" replace by "::" maybe..
     str.split.res <- strsplit(x =  hyper.col, split = "_")[[1]]
-    if (length(str.split.res) > 4){
+    if (length(str.split.res) > 5){
       warning("What have you done... str.split.res is more than 4 elements... please check")
       cat(hyper.col)
       cat("\n")
@@ -440,8 +476,9 @@ SignatureCrossValidation <- function(data.train, y.label,
       "DEA.method" = DEA.method,
       "signature.methods" = str.split.res[1],
       "signature.rm.regex" = str.split.res[2],
-      "signature.side" = str.split.res[3],
-      "signature.lengths" = str.split.res[4]
+      "signature.selection.method" = str.split.res[3],
+      "signature.side" = str.split.res[4],
+      "signature.lengths" = str.split.res[5]
     )
     names(res.train.metrics) <- paste0("train.", names(res.train.metrics))
     names(res.train.metrics.acc) <- paste0("train.", names(res.train.metrics.acc))
@@ -541,6 +578,6 @@ GetSignaturePrediction <- function(x.train,
     y.test.pred <- NULL
   }
   
-  return(list("y.train.pred" = y.train.pred, "y.test.pred" = y.test.pred))
+  return(list("y.train.pred" = y.train.pred, "y.test.pred" = y.test.pred, "x.threshold" = x.threshold))
 }
 

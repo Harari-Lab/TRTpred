@@ -10,7 +10,8 @@ DEFAULT.LR.HYPERPARAMS <- list("alpha" = 0, "lambda" = 0)
 DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20), 
                                       "signature.side" = c("both"),
                                       "signature.rm.regex" = "none",
-                                      "signature.methods" = c("AUCell"))
+                                      "signature.methods" = c("AUCell"),
+                                      "signature.selection.method" = c("logFC"))
 DA.METHODS <- c("wilcox")
 P.ADJUST.METHODS <- c("fdr", "bonferroni", "holm", "hochberg", "hommel", "BH", "BY", "none")
 LIMMA.METHODS <- c("limma_voom", "limma_trend")
@@ -59,6 +60,10 @@ EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 #' discriminant analysis. 
 #' Default = "fdr"
 #' @param DA.p.val.threshold numeric; The p-val significant threshold. 
+#' @param DA.event.per.variable, numerical; The number of event per variable threshold
+#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
+#' a way to select a fewer amount of variables for a fixed amount of samples. 
+#' Default = NULL (no selection on EPV)
 #' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
 #' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
 #' default = "wilcox" from the Seurat::FindMarker() function
@@ -77,9 +82,10 @@ TrainModel <- function(x.train, y.train,
                        DA.method = c("none", DA.METHODS),
                        DA.p.adjust.method = P.ADJUST.METHODS,
                        DA.p.val.threshold = 0.05,
+                       DA.event.per.variable = NULL,
                        LR.prob.threhsold = 0.5,
                        DEA.method = DEA.METHODS, 
-                       save.DEA.folder){
+                       save.DEA.folder = NULL){
   
   # Setting parameters: 
   method <- match.arg(method) # default = "LR"
@@ -87,10 +93,12 @@ TrainModel <- function(x.train, y.train,
   DA.method <- match.arg(DA.method) # default = "none"
   DA.p.adjust.method <- match.arg(DA.p.adjust.method) # default = "fdr"
   DEA.method <- match.arg(DEA.method) # default = "wilcox"
-
-  if (nrow(x.test) == 0){
-    x.test <- NULL
-    y.test <- NULL
+  
+  if (!is.null(x.test)){
+    if (nrow(x.test) == 0){
+      x.test <- NULL
+      y.test <- NULL
+    }
   }
   
   # Feature transformation
@@ -114,7 +122,8 @@ TrainModel <- function(x.train, y.train,
       y = y.train[, y.label], 
       method = DA.method, 
       p.adjust.method = DA.p.adjust.method, 
-      p.val.threshold = DA.p.val.threshold
+      p.val.threshold = DA.p.val.threshold,
+      event.per.variable = DA.event.per.variable
     )
     sig.features <- rownames(subset(discr.res, Significant))
     
@@ -127,6 +136,9 @@ TrainModel <- function(x.train, y.train,
       warning("Discriminant Analysis: No significant features were identified. We continue without Discriminant Analysis")
     }
   }
+  
+  # TODO delete this
+  # save.image("~/Desktop/NCV_V01.RData")
   
   if (method == "LR"){
     
@@ -162,6 +174,7 @@ TrainModel <- function(x.train, y.train,
       y.sample = y.sample, 
       y.covariates = y.covariates, 
       DEA.method = DEA.method,
+      signature.selection.method = hyperparams$signature.selection.method,
       signature.lengths = hyperparams$signature.lengths, 
       signature.sides = hyperparams$signature.side, 
       signature.rm.regex = hyperparams$signature.rm.regex, 
@@ -445,6 +458,10 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
 #' @param DA.p.adjust.method character; The p-value adjust method for the 
 #' discriminant analysis. 
 #' Default = "fdr"
+#' @param DA.event.per.variable, numerical; The number of event per variable threshold
+#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
+#' a way to select a fewer amount of variables for a fixed amount of samples. 
+#' Default = NULL (no selection on EPV)
 #' @param DA.p.val.threshold numeric; The p-val significant threshold. 
 #' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
 #' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
@@ -463,6 +480,7 @@ NestedCrossValidation <- function(x, y,
                                   DA.method = c("none", DA.METHODS),
                                   DA.p.adjust.method = P.ADJUST.METHODS,
                                   DA.p.val.threshold = 0.05,
+                                  DA.event.per.variable = NULL,
                                   LR.prob.threhsold = 0.5,
                                   DEA.method = DEA.METHODS
                                   ){
@@ -514,6 +532,7 @@ NestedCrossValidation <- function(x, y,
         DA.method = DA.method,
         DA.p.adjust.method = DA.p.adjust.method,
         DA.p.val.threshold = DA.p.val.threshold,
+        DA.event.per.variable = DA.event.per.variable,
         LR.prob.threhsold = LR.prob.threhsold,
         DEA.method = DEA.method,
         save.DEA.folder = NULL)
@@ -597,9 +616,14 @@ NestedCrossValidation <- function(x, y,
 #' discriminant analysis. 
 #' Default = "fdr"
 #' @param DA.p.val.threshold numeric; The p-val significant threshold. 
+#' @param DA.event.per.variable, numerical; The number of event per variable threshold
+#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
+#' a way to select a fewer amount of variables for a fixed amount of samples. 
+#' Default = NULL (no selection on EPV)
 #' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
 #' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
 #' default = "wilcox" from the Seurat::FindMarker() function
+#' @param save.DEA.folder character; Folder to save the DEA information in
 #' 
 #' @return data.frame summarizing the Nested-cross-validation
 #' 
@@ -615,8 +639,10 @@ CrossValidation <- function(x, y,
                             DA.method = c("none", DA.METHODS),
                             DA.p.adjust.method = P.ADJUST.METHODS,
                             DA.p.val.threshold = 0.05,
+                            DA.event.per.variable = NULL,
                             LR.prob.threhsold = 0.5,
-                            DEA.method = DEA.METHODS){
+                            DEA.method = DEA.METHODS,
+                            save.DEA.folder = NULL){
   
   # Setting parameters: 
   method <- match.arg(method) # default = "LR"
@@ -669,7 +695,7 @@ CrossValidation <- function(x, y,
   }
   
   CV.res <- 
-    foreach::foreach(fold.out.name = names.outer, .combine='rbind') %dopar% { # fold.out.name <- names.outer[11]
+    foreach::foreach(fold.out.name = names.outer, .combine='rbind') %dopar% { # fold.out.name <- names.outer[1]
       message(paste0("fold.out.name: ", fold.out.name))
       
       # Get the indexes of outer fold
@@ -698,6 +724,7 @@ CrossValidation <- function(x, y,
         DA.method = DA.method,
         DA.p.adjust.method = DA.p.adjust.method,
         DA.p.val.threshold = DA.p.val.threshold,
+        DA.event.per.variable = DA.event.per.variable,
         LR.prob.threhsold = LR.prob.threhsold,
         DEA.method = DEA.method,
         save.DEA.folder = NULL)
@@ -759,27 +786,50 @@ GetBestOuterHyperparams <- function(NCV.res,
     stop("GetBestOuterHyperparams: The metric '", selection.metric, "' not in NCV.res")
   }
   
-  NCV.res$accaury_ <- NCV.res[[paste0("test.", selection.metric)]]
+  NCV.res$accuracy_ <- NCV.res[[paste0("test.", selection.metric)]]
   
-  hyperparams.best <- data.frame(row.names = unique(NCV.res[[outer.col]]))
-  for (hp in hyperparms.col){
-    if (hp %in% colnames(NCV.res)){
-      NCV.res$hp <- NCV.res[[hp]]
-      hyperparams.best.tmp <- NCV.res %>%
-        group_by_at(outer.col) %>%
-        summarise(
-          value = hp[which(accaury_ == max(accaury_, na.rm = T))[1]]
-        )
-      hyperparams.best.tmp <- data.frame(hyperparams.best.tmp)
-      rownames(hyperparams.best.tmp) <- hyperparams.best.tmp$outer
-      hyperparams.best.tmp$outer <- NULL
-      colnames(hyperparams.best.tmp) <- hp
-      hyperparams.best <- cbind(hyperparams.best, hyperparams.best.tmp)
-    } else {
-      warning(paste0("In GetBestOuterHyperparams: Missing hyper-parameter ", hp, 
-                     ". Skip this hyper-parameter"))
-    }
-  }
+  # Test start here ------------------
+
+  outer.avg <- NCV.res %>% 
+    group_by(across(all_of(c("outer", hyperparms.col)))) %>% 
+    summarise(acc_avg = mean(accuracy_),
+              acc_max = max(accuracy_),
+              acc_min = min(accuracy_),
+              .groups = "keep")
+  outer.avg <- data.frame(outer.avg)
+  
+  hyperparams.best <- outer.avg %>% 
+    group_by(outer) %>% 
+    filter(acc_avg == max(acc_avg))
+  hyperparams.best <- data.frame(hyperparams.best)
+  
+  hyperparams.best <- hyperparams.best[!duplicated(hyperparams.best$outer), ]
+  
+  rownames(hyperparams.best) <- hyperparams.best$outer
+  hyperparams.best$outer <- NULL
+  
+  # Test ends here ------------------
+  
+  
+  # hyperparams.best <- data.frame(row.names = unique(NCV.res[[outer.col]]))
+  # for (hp in hyperparms.col){
+  #   if (hp %in% colnames(NCV.res)){
+  #     NCV.res$hp <- NCV.res[[hp]]
+  #     hyperparams.best.tmp <- NCV.res %>%
+  #       group_by_at(outer.col) %>%
+  #       summarise(
+  #         value = hp[which(accuracy_ == max(accuracy_, na.rm = T))[1]]
+  #       )
+  #     hyperparams.best.tmp <- data.frame(hyperparams.best.tmp)
+  #     rownames(hyperparams.best.tmp) <- hyperparams.best.tmp$outer
+  #     hyperparams.best.tmp$outer <- NULL
+  #     colnames(hyperparams.best.tmp) <- hp
+  #     hyperparams.best <- cbind(hyperparams.best, hyperparams.best.tmp)
+  #   } else {
+  #     warning(paste0("In GetBestOuterHyperparams: Missing hyper-parameter ", hp, 
+  #                    ". Skip this hyper-parameter"))
+  #   }
+  # }
   
   return(hyperparams.best)
 }

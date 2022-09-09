@@ -51,14 +51,14 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
   }
   design.str <- gsub("[-]", "..", design.str)
   
-  x.columns <- strsplit(gsub(".*~ *", "", design.str), "[+]")[[1]]
+  x.columns <- trimws(strsplit(gsub(".*~ *", "", design.str), "[+]")[[1]])
  
   # Create Empty containers
   res.inner <- data.frame()
   
   if (length(x.columns) > 1){
-    for (lambda in hyperparams$lambda){ # lambda <- 0
-      for(alpha in hyperparams$alpha){# alpha <- 0
+    for (lambda in hyperparams$lambda){ # lambda <- 5
+      for(alpha in hyperparams$alpha){# alpha <- 0.8
         # Train the models
         # lambda for L1, alpha for L2
         res.fit <- glmnetUtils::glmnet(
@@ -81,7 +81,7 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
         # Get testing accuracy
         if (!is.null(data.test)){
           y.test.prob  <- stats::predict(object = res.fit, newdata = data.test, type = "response")[,1]
-          y.test.pred <- y.test.prob >= model.prob.threshold
+          y.test.pred <- y.test.prob < model.prob.threshold
           
           res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
           res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
@@ -96,7 +96,8 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
         # Save results in cv.df.outer.inner:
         res.info <- list(
           "lambda" = lambda, 
-          "alpha" = alpha)
+          "alpha" = alpha,
+          "model.prob.threshold" = model.prob.threshold)
         
         names(res.train.metrics) <- paste0("train.", names(res.train.metrics))
         names(res.train.metrics.acc) <- paste0("train.", names(res.train.metrics.acc))

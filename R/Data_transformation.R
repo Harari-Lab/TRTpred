@@ -39,8 +39,7 @@ FeatureTrans <- function(x.train, x.test = NULL,
     
     if (!is.null(explained.var.threshold)){
       pca.res <- summary(pca.res)
-      pca.pcs.sig <- names(pca.res$importance["Proportion of Variance", 
-                                              pca.res$importance["Proportion of Variance", ] >= explained.var.threshold])
+      pca.pcs.sig <- names(pca.res$importance["Proportion of Variance", pca.res$importance["Proportion of Variance", ] >= explained.var.threshold])
       x.train.res <- x.train.res[, pca.pcs.sig]
       if (!is.null(x.test)){
         x.test.res <- x.test.res[, pca.pcs.sig]

@@ -22,6 +22,10 @@ suppressMessages(require(stats))
 #' Default = "fdr"
 #' @param p.val.threshold, numerical; The p-val significant threshold 
 #' Default = 0.05
+#' @param event.per.variable, numerical; The number of event per variable threshold
+#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
+#' a way to select a fewer amount of variables for a fixed amount of samples. 
+#' Default = NULL (no selection on EPV)
 #' 
 #' @return data.frame. The results form the discriminant analysis. 
 #'  - row.names = features
@@ -30,7 +34,8 @@ suppressMessages(require(stats))
 #' @export
 DiscrAnalysisBinary <- function(x, y, method = DA.METHODS,
                                 p.adjust.method = P.ADJUST.METHODS,
-                                p.val.threshold = 0.05){
+                                p.val.threshold = 0.05, 
+                                event.per.variable = NULL){
   
   method <- match.arg(method) # default = wilcox
   p.adjust.method <- match.arg(p.adjust.method) #default = "fdr"
@@ -64,8 +69,22 @@ DiscrAnalysisBinary <- function(x, y, method = DA.METHODS,
       test.res$p_val_adj <- test.res$p_val
     }
     
-    # get which are significant
-    test.res$Significant <- test.res$p_val_adj <= p.val.threshold
+    
+    
+    if (!is.null(event.per.variable)){
+      # Get the number of features
+      num.feature <- ceiling(nrow(x)/event.per.variable)
+      # Identify features that pass the EPV threhsold
+      # here we sort the test.res from most to least significant and take the num.feature first feature
+      test.res <- test.res[order(test.res$p_val_adj), ]
+      test.res$EPV_selection <- F
+      test.res$EPV_selection[1:num.feature] <- T
+      # Get which are significant
+      test.res$Significant <- (test.res$p_val_adj <= p.val.threshold) & test.res$EPV_selection
+    } else {
+      # Get which are significant
+      test.res$Significant <- test.res$p_val_adj <= p.val.threshold
+    }
   }
   
   return(test.res)

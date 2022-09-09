@@ -76,18 +76,32 @@ GetAccuracyMetrics <- function(metrics = EVALUATION.METRICS,
     res[["accuracy"]] <- (tp + tn) / N
   }
   if ("mcc" %in% metrics){ # https://en.wikipedia.org/wiki/Phi_coefficient
+    
     # If we use the "normal" equation: 
     # We get and error: In (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn) : NA produced by integer overflow
     # So I use this one instead:
-    S <- (tp + fn) / N
-    P <- (tp + fp) / N
-    nominator <-  (tp/N) - (S * P)
-    denominator <- (P * S) * (1 - S) * (1 - P)
-    if (denominator == 0){
-      res[["mcc"]] <- 0
-    } else {
-      res[["mcc"]] <- nominator / sqrt(denominator)
+    # S <- (tp + fn) / N
+    # P <- (tp + fp) / N
+    # nominator <-  (tp/N) - (S * P)
+    # denominator <- (P * S) * (1 - S) * (1 - P)
+    # if (denominator == 0){
+    #   res[["mcc"]] <- 0
+    # } else {
+    #   res[["mcc"]] <- nominator / sqrt(denominator)
+    # }
+    
+    # https://github.com/davidechicco/MCC/blob/master/bin/confusion_matrix_rates.r
+    
+    sum1 <- tp+fp; sum2 <-tp+fn ; sum3 <-tn+fp ; sum4 <- tn+fn
+    denominator <- as.double(sum1)*sum2*sum3*sum4 # as.double to avoid overflow error on large products
+    if (any(sum1==0, sum2==0, sum3==0, sum4==0)) {
+      denominator <- 1
     }
+    denominator <- sqrt(denominator)
+    nominator <- (tp*tn)-(fp*fn)
+    res[["mcc"]] <- nominator / denominator
+    
+    
   }
   if ("F1" %in% metrics){
     res[["F1"]] <- (2*tp) / ((2*tp) + fp + fn)
@@ -133,15 +147,25 @@ GetMccBinary <- function(ground_truth = NULL, preds = NULL,
   # If we use the "normal" equation: 
   # We get and error: In (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn) : NA produced by integer overflow
   # So I use this one instead:
-  S <- (tp + fn) / N
-  P <- (tp + fp) / N
-  nominator <-  (tp/N) - (S * P)
-  denominator <- (P * S) * (1 - S) * (1 - P)
-  if (denominator == 0){
-    res[["mcc"]] <- 0
-  } else {
-    res[["mcc"]] <- nominator / sqrt(denominator)
+  # S <- (tp + fn) / N
+  # P <- (tp + fp) / N
+  # nominator <-  (tp/N) - (S * P)
+  # denominator <- (P * S) * (1 - S) * (1 - P)
+  # if (denominator == 0){
+  #   res[["mcc"]] <- 0
+  # } else {
+  #   res[["mcc"]] <- nominator / sqrt(denominator)
+  # }
+  
+  # https://github.com/davidechicco/MCC/blob/master/bin/confusion_matrix_rates.r
+  sum1 <- tp+fp; sum2 <-tp+fn ; sum3 <-tn+fp ; sum4 <- tn+fn
+  denominator <- as.double(sum1)*sum2*sum3*sum4 # as.double to avoid overflow error on large products
+  if (any(sum1==0, sum2==0, sum3==0, sum4==0)) {
+    denominator <- 1
   }
+  denominator <- sqrt(denominator)
+  nominator <- (tp*tn)-(fp*fn)
+  res[["mcc"]] <- nominator / denominator
   
   return(res)
 }
