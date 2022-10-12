@@ -1,8 +1,9 @@
 # Function to transforme datta
 
 suppressMessages(require(stats))
+suppressMessages(require(ropls))
 
-FEATURE.TRANS.METHODS <- c("pca")
+FEATURE.TRANS.METHODS <- c("pca", "opls")
 
 #' Feature space transformation function
 #' 
@@ -23,6 +24,7 @@ FEATURE.TRANS.METHODS <- c("pca")
 #' 
 #' @export
 FeatureTrans <- function(x.train, x.test = NULL, 
+                         y.train.lab = NULL,
                          method = FEATURE.TRANS.METHODS, 
                          explained.var.threshold = NULL){
   
@@ -45,6 +47,36 @@ FeatureTrans <- function(x.train, x.test = NULL,
         x.test.res <- x.test.res[, pca.pcs.sig]
       }
     }
+  } else if (method == "opls"){
+    y.train.lab <- as.factor(y.train.lab)
+    y.train.lab <- factor(y.train.lab, levels = c(levels(y.train.lab)[2], levels(y.train.lab)[1]))
+    
+    opls.res <- ropls::opls(
+      x = x.train, 
+      y = y.train.lab, 
+      scaleC = 'standard', # c("none", "center", "pareto", "standard")
+      log10L = FALSE,
+      predI = 1,
+      orthoI = 1,
+      fig.pdfC = "none", # no figure is generated
+      info.txtC = "none") # no save file name is provided)
+    
+    opls.res.df <- cbind(opls.res@weightMN, opls.res@weightStarMN, opls.res@orthoWeightMN,
+                         opls.res@vipVn, opls.res@orthoVipVn, 
+                         opls.res@loadingMN, opls.res@orthoLoadingMN, 
+                         opls.res@coefficientMN)
+    colnames(opls.res.df) <- c("weightMN", "weightStarMN", "orthoWeightMN",
+                               "vipVn", "orthoVipVn", 
+                               "loadingMN", "orthoLoadingMN", 
+                               "coefficientMN") 
+    # Add to this data.frame the variables that were removed due to having a 
+    # variance < 2.2e-16 in the full or partial (cross-validation) dataset
+    ZeroVarVi <-  data.frame(row.names = names(opls.res@xZeroVarVi))
+    if (nrow(ZeroVarVi) > 0){
+      for (col_ in colnames(opls.res.df)){ZeroVarVi[[col_]] <- NA}
+      opls.res.df <- rbind(opls.res.df, ZeroVarVi[, colnames(opls.res.df)])
+    }
+    
   }
   
   return(list("x.train" = x.train.res, "x.test" = x.test.res))

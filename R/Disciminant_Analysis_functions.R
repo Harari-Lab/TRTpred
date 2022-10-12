@@ -69,8 +69,6 @@ DiscrAnalysisBinary <- function(x, y, method = DA.METHODS,
       test.res$p_val_adj <- test.res$p_val
     }
     
-    
-    
     if (!is.null(event.per.variable)){
       # Get the number of features
       num.feature <- ceiling(nrow(x)/event.per.variable)
@@ -88,4 +86,51 @@ DiscrAnalysisBinary <- function(x, y, method = DA.METHODS,
   }
   
   return(test.res)
+}
+
+#' Remove mutually correlated features
+#' 
+#' @description 
+#' This function outputs a data.frame indicating which features are mutually 
+#' correlated and which one to remove.
+#' 
+#' @param x data.frame; The input feature space data
+#' @param y categorical vector; The binary output
+#' @param threshold numerical; Significant correlaltion threhsolld
+#' default = 0.8
+#' 
+#' @return data.frame. The results form the discriminant analysis. 
+#'  - row.names = features
+#'  - column names = "mutually_corr" (logical), "keep" (logical) & "abs_y_corr" (numerical)
+#' 
+#' @export
+RemoveMutuallyCorrFeatures <- function(x, y, threshold = 0.8){
+  
+  y <- as.factor(y)
+  
+  corr.res <- data.frame(row.names = colnames(x))
+  corr.res$mutually_corr <- F
+  corr.res$keep <- T
+  corr.res$abs_y_corr <- abs(cor(x = x, y = (y == levels(y)[1]), method = "pearson"))
+  
+  corr.mat <- cor(x, method = "pearson")
+  corr.mat.bool <- abs(corr.mat) >= threshold
+  corr.features <- rownames(corr.mat.bool)[rowSums(corr.mat.bool) > 1]
+  
+  if (length(corr.features) > 0){
+    corr.res[corr.features, ]$mutually_corr <- T
+    
+    # feat.keep <- c()
+    feat.rm <- c()
+    for (corr.feat in corr.features){
+      mutually.corr.feat <- rownames(corr.mat.bool)[corr.mat.bool[corr.feat, ]]
+      best.corr.feat <- names(which(corr.res$abs_y_corr[mutually.corr.feat, 1] == 
+                                     max(corr.res$abs_y_corr[mutually.corr.feat, 1])))[1]
+      # feat.keep <- c(feat.keep, best.corr.feat)
+      feat.rm <- c(feat.rm, mutually.corr.feat[mutually.corr.feat != best.corr.feat])
+    }
+    corr.res[feat.rm, ]$keep <- F
+  }
+
+  return(corr.res)
 }

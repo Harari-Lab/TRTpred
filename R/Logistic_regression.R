@@ -19,12 +19,23 @@ EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 #' - "lambda" (L1-regularization): Vector of lambda values (0-1)
 #' @param model.prob.threshold numerical; The model probability threshold
 #' Default = 0.5
+#' @param folds.save.folder character; Folder to save the model information. 
+#' If null doesn't save anything. If not null, it will save the following data into the folder: 
+#' - res.fit.rds: glmnetUtils::glmnet() results
+#' - y.train.pred.rds: y.train.pred data.frame (rows = cell name, col = prediction)
+#' - y.test.pred.rds: y.test.pred data.frame (rows = cell name, col = prediction)
+#' default = NULL
+#' @param sample.weights data.frame (rows = observation, column = weight); The 
+#' observation weights data.frame. 
+#' Default = NULL i.e. 1 for each observation
 #' 
 #' @return data.frame; The dataframe summarizing the accuracy of the model for varying hyperparameters
 #' 
 #' @export
 LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = NULL, 
-                              model.prob.threshold = 0.5){
+                              model.prob.threshold = 0.5, folds.save.folder = NULL, 
+                              sample.weights = NULL,
+                              save.full.model = F){
   
   # Sanity checks:
   if (!("lambda" %in% names(hyperparams))){
@@ -55,10 +66,17 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
  
   # Create Empty containers
   res.inner <- data.frame()
-  
+  if (!is.null(folds.save.folder)){
+    y.train.pred.df <- data.frame(row.names = rownames(data.train))
+    y.test.pred.df <- data.frame(row.names = rownames(data.test))
+    beta.coef.df <- data.frame(row.names = x.columns)
+  }
   if (length(x.columns) > 1){
-    for (lambda in hyperparams$lambda){ # lambda <- 5
-      for(alpha in hyperparams$alpha){# alpha <- 0.8
+    for (lambda in hyperparams$lambda){ # lambda <- 0.5
+      for(alpha in hyperparams$alpha){ # alpha <- 0.1
+        
+        hyperparams_key <- paste(alpha, lambda, sep = "_")
+        
         # Train the models
         # lambda for L1, alpha for L2
         res.fit <- glmnetUtils::glmnet(
@@ -66,7 +84,19 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
           data = data.train,
           family = "binomial", 
           alpha = alpha, 
+          weights = sample.weights[rownames(data.train),1],
           lambda = lambda)
+        
+        if (!is.null(folds.save.folder)){
+          beta.coef.df.tmp <- data.frame(res.fit$beta)
+          colnames(beta.coef.df.tmp) <- hyperparams_key
+          beta.coef.df <- cbind(beta.coef.df, beta.coef.df.tmp)
+          
+          # DO NOT do this --> Way to space heavy!!! 
+          if (save.full.model){
+            saveRDS(res.fit, file = paste0(folds.save.folder, "res_fit_", hyperparams_key, ".rds"))
+          }
+        }
         
         # Get training accuracies:
         y.train.prob <- stats::predict(object = res.fit, newdata = data.train, type = "respons")[,1] # newx for simple glmnet
@@ -78,10 +108,24 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
                                                     tn = res.train.metrics$TN, 
                                                     fn = res.train.metrics$FN)
         
+        if (!is.null(folds.save.folder)){
+          y.train.pred.df.tmp <- data.frame(y.train.pred, row.names = rownames(data.train))
+          colnames(y.train.pred.df.tmp) <- hyperparams_key
+          y.train.pred.df <- cbind(y.train.pred.df, y.train.pred.df.tmp)
+          # saveRDS(y.train.pred.df, file = paste0(folds.save.folder, "y_train_pred_", hyperparams_key, ".rds"))
+        }
+        
         # Get testing accuracy
         if (!is.null(data.test)){
           y.test.prob  <- stats::predict(object = res.fit, newdata = data.test, type = "response")[,1]
           y.test.pred <- y.test.prob < model.prob.threshold
+          
+          if (!is.null(folds.save.folder)){
+            y.test.pred.df.tmp <- data.frame(y.test.pred, row.names = rownames(data.test))
+            colnames(y.test.pred.df.tmp) <- hyperparams_key
+            y.test.pred.df <- cbind(y.test.pred.df, y.test.pred.df.tmp)
+            # saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred_", hyperparams_key, ".rds"))
+          }
           
           res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
           res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
@@ -133,6 +177,14 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
         res.inner <- rbind(res.inner, res.info)
       }
     }
+  }
+  
+  if (!is.null(folds.save.folder)){
+    saveRDS(y.train.pred.df, file =  paste0(folds.save.folder, "y_train_pred.rds"))
+    if (!is.null(data.test)){
+      saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred.rds"))
+    }
+    saveRDS(beta.coef.df, file = paste0(folds.save.folder, "LR_beta_coef.rds"))
   }
   
   return(res.inner)

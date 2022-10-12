@@ -275,6 +275,14 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
 #' Possible values are methods in GetSignatureScore()
 #' @param assay character; The Seurat assay. Default = "RNA"
 #' @param slot character; The Seurat slot. Default = "counts"
+#' @param folds.save.folder character; Folder to save the model information. 
+#' If null doesn't save anything. If not null, it will save the following data into the folder: 
+#' - dea.res.rds: DEA results as in RunDEA()
+#' - signature.score.train.rds: signature.score.train data.frame (rows = cell name, col = score for different hyperparmaters)
+#' - signature.score.test.rds: signature.score.test data.frame (rows = cell name, col = score for different hyperparmaters)
+#' - y.train.pred.rds: y.train.pred data.frame (rows = cell name, col = prediction)
+#' - y.test.pred.rds: y.test.pred data.frame (rows = cell name, col = prediction)
+#' default = NULL
 #' 
 #' @return data.frame
 #' 
@@ -290,7 +298,9 @@ SignatureCrossValidation <- function(data.train, y.label,
                                      signature.rm.regex = NULL,
                                      signature.methods = c("AUCell"),
                                      assay = "RNA", slot = "counts", 
-                                     save.DEA.folder = NULL){
+                                     sample.weights = NULL,
+                                     folds.save.folder = NULL, 
+                                     save.full.model = F){
   
   # Parameters settings and sanity checks:
   DEA.method <- match.arg(DEA.method)
@@ -315,9 +325,8 @@ SignatureCrossValidation <- function(data.train, y.label,
     assay = "RNA", slot = "counts", 
     method = DEA.method)
   
-  if (!is.null(save.DEA.folder)){
-    save.DEA.file = paste0(save.DEA.folder, "DEA_",DEA.method,".rds")
-    saveRDS(dea.res, file = save.DEA.file)
+  if (!is.null(folds.save.folder)){
+    saveRDS(dea.res, file = paste0(folds.save.folder, "dea.res.rds"))
   }
   
   
@@ -398,12 +407,13 @@ SignatureCrossValidation <- function(data.train, y.label,
     }
   }
   
-  if (!is.null(save.DEA.folder)){
-    save.DEA.file = paste0(save.DEA.folder, "signature.score.train_",DEA.method,".rds")
-    saveRDS(signature.score.train, file = save.DEA.file)
-    if (!is.null(data.test)){
-      save.DEA.file = paste0(save.DEA.folder, "signature.score.test_",DEA.method,".rds")
-      saveRDS(signature.score.test, file = save.DEA.file)
+  if (save.full.model){
+    if (!is.null(folds.save.folder)){
+      # DO not do this! Way to heavy!!!!
+      saveRDS(signature.score.train, file =  paste0(folds.save.folder, "signature.score.train.rds"))
+      if (!is.null(data.test)){
+        saveRDS(signature.score.test, file = paste0(folds.save.folder, "signature.score.test.rds"))
+      }
     }
   }
   
@@ -419,6 +429,10 @@ SignatureCrossValidation <- function(data.train, y.label,
   }
   
   res.inner <- data.frame()
+  if (!is.null(folds.save.folder)){
+    y.train.pred.df <- data.frame(row.names = colnames(data.train))
+    y.test.pred.df <- data.frame(row.names = colnames(data.test))
+  }
   for (hyper.col in colnames(signature.score.train)){ # hyper.col <- colnames(signature.score.train)[1]
     
     if (!all(is.na(signature.score.train[,hyper.col]))){
@@ -431,11 +445,25 @@ SignatureCrossValidation <- function(data.train, y.label,
         x.train = signature.score.train[,hyper.col], 
         x.test = x.test,
         method = "greedy", 
+        weights = sample.weights[rownames(signature.score.train), 1],
         ground.truth = y.train)
       
       # Get train & test predictions: 
       y.train.pred <- pred.res$y.train.pred
       y.test.pred <- pred.res$y.test.pred
+      
+      if (!is.null(folds.save.folder)){
+        y.train.pred.df.tmp <- data.frame(y.train.pred, row.names = colnames(data.train))
+        colnames(y.train.pred.df.tmp) <- hyper.col
+        y.train.pred.df <- cbind(y.train.pred.df, y.train.pred.df.tmp)
+        # saveRDS(y.train.pred.df, file =  paste0(folds.save.folder, "y_train_pred_", hyper.col, ".rds"))
+        if (!is.null(data.test)){
+          y.test.pred.df.tmp <- data.frame(y.test.pred, row.names = colnames(data.test))
+          colnames(y.test.pred.df.tmp) <- hyper.col
+          y.test.pred.df <- cbind(y.test.pred.df, y.test.pred.df.tmp)
+          # saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred_", hyper.col, ".rds"))
+        }
+      }
       
       # Get training accuracy:
       res.train.metrics <- GetMetricsBinary(ground_truth = y.train, preds = y.train.pred)
@@ -491,6 +519,13 @@ SignatureCrossValidation <- function(data.train, y.label,
     res.inner <- rbind(res.inner, res.info)
   }
   
+  if (!is.null(folds.save.folder)){
+    saveRDS(y.train.pred.df, file =  paste0(folds.save.folder, "y_train_pred.rds"))
+    if (!is.null(data.test)){
+      saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred.rds"))
+    }
+  }
+  
   return(res.inner)
 }
 
@@ -500,14 +535,19 @@ SignatureCrossValidation <- function(data.train, y.label,
 #' 
 #' @param x numerical predictions
 #' @param y logical ground truth
-#' @param th numerical threhsold to apply on x to get logical predictions
+#' @param th numerical threshold to apply on x to get logical predictions
+#' @param weights vector of numerical of length identical to x. 
+#' It represent the weights of the samples
+#' Default vector of ones 
 #' 
-#' @return accuracy for x for a threshold th
+#' @return accuracy for x for a threshold th with samples weighted by weights
 #' 
 #' @export
-GetSignatureAccuracy <- function(x, y, th){
+GetSignatureAccuracy <- function(x, y, th, weights = replicate(n = length(x), expr = 1)){
   pred <-  (x >= th) == y
-  return(sum(pred)/length(pred))
+  sum.T <- sum(weights[pred])
+  sum.all <- sum(weights)
+  return(sum.T/sum.all)
 }
 
 
@@ -531,6 +571,8 @@ GetSignatureAccuracy <- function(x, y, th){
 #' @param x.threshold numerical; The threshold input for when method = "threshold"
 #' @param x.test numerical vector; The testing score vector. If NULL, return no testing prediction
 #' Default = NULL
+#' @param weights numerical vector of length identical to x.train; The observation weights.
+#' Default = NULL i.e. 1 for each observation
 #' 
 #' @return list("y.train.pred" = ..., "y.test.pred" = ...)
 #' 
@@ -539,7 +581,8 @@ GetSignaturePrediction <- function(x.train,
                                    method = c("greedy", "threshold"), 
                                    ground.truth = NULL,
                                    x.threshold = NULL,
-                                   x.test = NULL){
+                                   x.test = NULL, 
+                                   weights = NULL){
   method <- match.arg(method)
   
   # sanity checks + control inputs
@@ -557,11 +600,15 @@ GetSignaturePrediction <- function(x.train,
   if (method == "greedy"){
     range_ <- range(x.train, na.rm = T)
     if ((range_[2]-range_[1]) > 0){
+      if (is.null(weights)){
+        weights <- replicate(n = length(x.train), expr = 1)
+      }
       opt.res <- stats::optimize(
         f = GetSignatureAccuracy, 
         interval = range(x.train, na.rm = T), 
         x = x.train, 
         y = ground.truth, 
+        weights = weights,
         maximum = T)
       x.threshold <- opt.res$maximum
     } else {

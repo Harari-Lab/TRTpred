@@ -19,7 +19,7 @@ EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
 DESEQ.METHODS <- c("DESeq2_Wald", "DESeq2_LRT")
 SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, LIMMA.METHODS, EDGER.METHODS)
-FEATURE.TRANS.METHODS <- c("pca")
+FEATURE.TRANS.METHODS <- c("pca", "opls")
 EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 
 
@@ -53,6 +53,9 @@ EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 #' Default = "none" i.e. no transformation. 
 #' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
 #' to select PCs explaining more variance than the threhsold
+#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' while keeping the ones that best correlate with the outcome? 
+#' default = F
 #' @param DA.method character; The discriminant analysis (DA) method. 
 #' Possible values are "wilcox"
 #' Default = "none" i.e. no discriminant analysis
@@ -67,7 +70,12 @@ EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 #' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
 #' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
 #' default = "wilcox" from the Seurat::FindMarker() function
-#' @param save.DEA.folder character; Folder to save the DEA information in
+#' @param sample.weights data.frame (rows = observation, column = weight); The 
+#' observation weights data.frame. 
+#' Default = NULL i.e. 1 for each observation
+#' @param folds.save.folder character; Folder to save the model information. 
+#' If null doesn't save anything. 
+#' default = NULL
 #' 
 #' @return data.frame summarizing the Nested-cross-validation
 #' 
@@ -79,13 +87,16 @@ TrainModel <- function(x.train, y.train,
                        hyperparams = NULL,
                        data.trans.method = c("none", FEATURE.TRANS.METHODS), 
                        pca.explained.var.threshold = NULL,
+                       rm.corr.features = F,
                        DA.method = c("none", DA.METHODS),
                        DA.p.adjust.method = P.ADJUST.METHODS,
                        DA.p.val.threshold = 0.05,
                        DA.event.per.variable = NULL,
                        LR.prob.threhsold = 0.5,
                        DEA.method = DEA.METHODS, 
-                       save.DEA.folder = NULL){
+                       sample.weights = NULL,
+                       folds.save.folder = NULL,
+                       save.full.model = F){
   
   # Setting parameters: 
   method <- match.arg(method) # default = "LR"
@@ -105,7 +116,8 @@ TrainModel <- function(x.train, y.train,
   if (data.trans.method != "none"){
     data.transformed <- FeatureTrans(
       x.train = x.train, 
-      x.test = x.test, 
+      x.test = x.test,
+      y.train.lab = y.train[, y.label],
       method = data.trans.method,
       explained.var.threshold = pca.explained.var.threshold)
     
@@ -113,6 +125,24 @@ TrainModel <- function(x.train, y.train,
     x.test <- data.transformed$x.test
     
     rm(data.transformed)
+  }
+  
+  # Remove Mutually correlated features
+  if (rm.corr.features){
+    corr.res <- RemoveMutuallyCorrFeatures(
+      x = x.train,  
+      y = y.train[, y.label], 
+      threshold = 0.8)
+    
+    keep.features <- rownames(subset(corr.res, keep))
+    if (length(keep.features) > 0){
+      x.train <- x.train[, keep.features, drop = F]
+      if (!is.null(x.test)){
+        x.test <- x.test[, keep.features, drop = F]
+      }
+    } else {
+      warning("Remove Mutually Correlated features: No mutuallly corr features were identified.")
+    }
   }
   
   # Discriminant analysis
@@ -137,9 +167,6 @@ TrainModel <- function(x.train, y.train,
     }
   }
   
-  # TODO delete this
-  # save.image("~/Desktop/NCV_V01.RData")
-  
   if (method == "LR"){
     
     # Prepare data
@@ -155,7 +182,10 @@ TrainModel <- function(x.train, y.train,
       data.test = data.test,
       design.str = design.str, 
       hyperparams = hyperparams, 
-      model.prob.threshold = LR.prob.threhsold)
+      model.prob.threshold = LR.prob.threhsold,
+      sample.weights = sample.weights,
+      folds.save.folder = folds.save.folder,
+      save.full.model = save.full.model)
     
   } else if (method == "signature"){
     # Create Seurat object
@@ -181,7 +211,9 @@ TrainModel <- function(x.train, y.train,
       signature.methods = hyperparams$signature.methods, 
       assay = "RNA", 
       slot = "counts",
-      save.DEA.folder = save.DEA.folder)
+      sample.weights = sample.weights,
+      folds.save.folder = folds.save.folder,
+      save.full.model = save.full.model)
   }
   
   res.model[["n.data.input"]] <- nrow(x.train)
@@ -452,6 +484,9 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
 #' Default = "none" i.e. no transformation. 
 #' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
 #' to select PCs explaining more variance than the threhsold
+#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' while keeping the ones that best correlate with the outcome? 
+#' default = F
 #' @param DA.method character; The discriminant analysis (DA) method. 
 #' Possible values are "wilcox"
 #' Default = "none" i.e. no discriminant analysis
@@ -466,6 +501,13 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
 #' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
 #' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
 #' default = "wilcox" from the Seurat::FindMarker() function
+#' @param sample.weights data.frame (rows = observation, column = weight); The 
+#' observation weights data.frame. 
+#' Default = NULL i.e. 1 for each observation
+#' @param folds.save.folder character; Folder to save the fold model information. 
+#' If null doesn't save anything. if not null, a folder called "NCV_", fold.out.name, "_", fold.in.name
+#' will be created to store the model information in. 
+#' default = NULL
 #' 
 #' @return data.frame summarizing the Nested-cross-validation
 #' 
@@ -477,14 +519,16 @@ NestedCrossValidation <- function(x, y,
                                   hyperparams = NULL,
                                   data.trans.method = c("none", FEATURE.TRANS.METHODS), 
                                   pca.explained.var.threshold = NULL,
+                                  rm.corr.features = F,
                                   DA.method = c("none", DA.METHODS),
                                   DA.p.adjust.method = P.ADJUST.METHODS,
                                   DA.p.val.threshold = 0.05,
                                   DA.event.per.variable = NULL,
                                   LR.prob.threhsold = 0.5,
-                                  DEA.method = DEA.METHODS
+                                  DEA.method = DEA.METHODS,
+                                  sample.weights = NULL,
+                                  folds.save.folder = NULL
                                   ){
-  
   
   method <- match.arg(method) # default = "LR"
   data.trans.method <- match.arg(data.trans.method) # default = "none"
@@ -517,6 +561,15 @@ NestedCrossValidation <- function(x, y,
       x.test.inner  <- x.train.outer[fold.in$test,, drop=F]
       y.test.inner  <- y.train.outer[fold.in$test,, drop=F]
       
+      if (!is.null(folds.save.folder)){
+        folds.save.folder.tmp <- paste0(folds.save.folder, "NCV_", fold.out.name, "_", fold.in.name, "/")
+        if (!dir.exists(folds.save.folder.tmp)){
+          system(command = paste("mkdir", "-p", folds.save.folder.tmp))
+        }
+      } else {
+        folds.save.folder.tmp <- NULL
+      }
+      
       res.model <- TrainModel(
         x.train = x.train.inner,
         y.train = y.train.inner,
@@ -529,15 +582,17 @@ NestedCrossValidation <- function(x, y,
         hyperparams = hyperparams,
         data.trans.method = data.trans.method,
         pca.explained.var.threshold = pca.explained.var.threshold,
+        rm.corr.features = rm.corr.features,
         DA.method = DA.method,
         DA.p.adjust.method = DA.p.adjust.method,
         DA.p.val.threshold = DA.p.val.threshold,
         DA.event.per.variable = DA.event.per.variable,
         LR.prob.threhsold = LR.prob.threhsold,
         DEA.method = DEA.method,
-        save.DEA.folder = NULL)
+        sample.weights = sample.weights,
+        folds.save.folder = folds.save.folder.tmp)
       
-      # Add to the results additional feature dimention and properties
+      # Add to the results additional feature dimension and properties
       res.model$outer <- fold.out.name
       res.model$inner = fold.in.name
       
@@ -609,6 +664,9 @@ NestedCrossValidation <- function(x, y,
 #' Default = "none" i.e. no transformation. 
 #' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
 #' to select PCs explaining more variance than the threhsold
+#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' while keeping the ones that best correlate with the outcome? 
+#' default = F
 #' @param DA.method character; The discriminant analysis (DA) method. 
 #' Possible values are "wilcox"
 #' Default = "none" i.e. no discriminant analysis
@@ -623,7 +681,13 @@ NestedCrossValidation <- function(x, y,
 #' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
 #' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
 #' default = "wilcox" from the Seurat::FindMarker() function
-#' @param save.DEA.folder character; Folder to save the DEA information in
+#' @param sample.weights data.frame (rows = observation, column = weight); The 
+#' observation weights data.frame. 
+#' Default = NULL i.e. 1 for each observation
+#' @param folds.save.folder character; Folder to save the fold model information. 
+#' If null doesn't save anything. if not null, a folder called "CV_", fold.out.name
+#' will be created to store the model information in. 
+#' default = NULL
 #' 
 #' @return data.frame summarizing the Nested-cross-validation
 #' 
@@ -636,13 +700,15 @@ CrossValidation <- function(x, y,
                             hyperparams.best.per.fold = NULL,
                             data.trans.method = c("none", FEATURE.TRANS.METHODS), 
                             pca.explained.var.threshold = NULL,
+                            rm.corr.features = F,
                             DA.method = c("none", DA.METHODS),
                             DA.p.adjust.method = P.ADJUST.METHODS,
                             DA.p.val.threshold = 0.05,
                             DA.event.per.variable = NULL,
                             LR.prob.threhsold = 0.5,
                             DEA.method = DEA.METHODS,
-                            save.DEA.folder = NULL){
+                            sample.weights = NULL,
+                            folds.save.folder = NULL){
   
   # Setting parameters: 
   method <- match.arg(method) # default = "LR"
@@ -709,6 +775,15 @@ CrossValidation <- function(x, y,
       
       hyperparams_ <- hyperparams.list[[fold.out.name]]
       
+      if (!is.null(folds.save.folder)){
+        folds.save.folder.tmp <- paste0(folds.save.folder, "CV_", fold.out.name, "/")
+        if (!dir.exists(folds.save.folder.tmp)){
+          system(command = paste("mkdir", "-p", folds.save.folder.tmp))
+        }
+      } else {
+        folds.save.folder.tmp <- NULL
+      }
+      
       res.model <- TrainModel(
         x.train = x.train.outer, # [, 1:1000],
         y.train = y.train.outer,
@@ -721,13 +796,15 @@ CrossValidation <- function(x, y,
         hyperparams = hyperparams_,
         data.trans.method = data.trans.method,
         pca.explained.var.threshold = pca.explained.var.threshold,
+        rm.corr.features = rm.corr.features,
         DA.method = DA.method,
         DA.p.adjust.method = DA.p.adjust.method,
         DA.p.val.threshold = DA.p.val.threshold,
         DA.event.per.variable = DA.event.per.variable,
         LR.prob.threhsold = LR.prob.threhsold,
         DEA.method = DEA.method,
-        save.DEA.folder = NULL)
+        sample.weights = sample.weights,
+        folds.save.folder = folds.save.folder.tmp)
       
       res.model$outer <- fold.out.name
 
