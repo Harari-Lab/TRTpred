@@ -11,7 +11,8 @@ Runlimma(
   method = c("voom", "trend"),
   col.DE_group = "DE_group",
   col.sample = "Patient",
-  col.covariate = c("Patient")
+  col.covariate = c("Patient"),
+  col.aggregate = NULL
 )
 }
 \arguments{
@@ -33,6 +34,10 @@ sample information. default = "Patient". If NULL, every sample are in the same g
 \item{col.covariate, }{vector of character: A vector of colnames in mca's 
 meta.data defining the covariates to add in the DE design. 
 If NULL, no covariates are added. Default = c("Patient").}
+
+\item{col.aggregate}{character; Column in mca@meta.data to combine cells into pseudobulk. 
+If NULL, no pseudobulk integration
+Default = NULL}
 }
 \value{
 data.frame. The DE result data.frame

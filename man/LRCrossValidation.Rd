@@ -9,7 +9,10 @@ LRCrossValidation(
   design.str,
   hyperparams,
   data.test = NULL,
-  model.prob.threshold = 0.5
+  model.prob.threshold = 0.5,
+  folds.save.folder = NULL,
+  sample.weights = NULL,
+  save.full.model = F
 )
 }
 \arguments{
@@ -26,6 +29,17 @@ Default = NULL i.e. not computed}
 
 \item{model.prob.threshold}{numerical; The model probability threshold
 Default = 0.5}
+
+\item{folds.save.folder}{character; Folder to save the model information. 
+If null doesn't save anything. If not null, it will save the following data into the folder: 
+- res.fit.rds: glmnetUtils::glmnet() results
+- y.train.pred.rds: y.train.pred data.frame (rows = cell name, col = prediction)
+- y.test.pred.rds: y.test.pred data.frame (rows = cell name, col = prediction)
+default = NULL}
+
+\item{sample.weights}{data.frame (rows = observation, column = weight); The 
+observation weights data.frame. 
+Default = NULL i.e. 1 for each observation}
 }
 \value{
 data.frame; The dataframe summarizing the accuracy of the model for varying hyperparameters

@@ -20,6 +20,84 @@ SIGNATURE.SELECTION.METHODS <- c("logFC", "pval")
 
 SIGNATURE.SIDE <- c("both", "up", "down")
 
+DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20), 
+                                      "signature.side" = c("both"),
+                                      "signature.rm.regex" = "none",
+                                      "signature.methods" = c("AUCell"),
+                                      "signature.selection.method" = c("logFC"))
+
+#' Get signature prediction from a given model
+#' 
+#' Function to get the signature model prediction when given the model. 
+#' 
+#' @param x Seurat; The Seurat input data
+#' @param path.folder character; Folder to retrieve the model information.
+#' @param DEA.file.name character; The DEA result file name
+#' @param hyperparameters list; The signature hyperparmeters
+#' Elements of list are 
+#'   - "signature.lengths": Vector of signature lengths
+#'   - "signature.side": Vector of siganture sides ("up", "down" or "both")
+#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
+#'   - "signature.methods": Vector of signature score methods
+#'   - "signature.selection.method": How to select genes from DEA res using the log-Fold-Change ("logFC") or p-values ("pval")
+#' @param score.threshold numerical; The signature score threshold to binarize the score into positive and negative predictions
+#' 
+#' @return data.frame; Rows = barcode names in x. Cols = "score" and "pred"
+#' 
+#' @export
+GetPredictionSignature <- function(x, path.folder, 
+                                   DEA.file.name = "dea.res.rds", 
+                                   hyperparameters = DEFAULT.SIGNATURE.HYPERPARAMS, 
+                                   score.threshold = 0){
+  
+  # 0. Check hyperparameters:
+  for (name_ in names(DEFAULT.SIGNATURE.HYPERPARAMS)){
+    if (!(name_ %in% names(hyperparameters))){
+      hyperparameters[[name_]] <- DEFAULT.SIGNATURE.HYPERPARAMS[[name_]]
+    }
+  }
+  
+  # 1. Get DEA data
+  DEA.path <- paste0(path.folder, DEA.file.name)
+  if (file.exists(DEA.path)){
+    dea.res <- readRDS(file = DEA.path)
+  } else {
+    stop("GetPredictionSignature: DEA file path does not exist. Please check : ", DEA.path)
+  }
+  
+  # 2. Get signature
+  signature.list <- GetSignatureList(
+    df = dea.res,
+    pval_col = "padj", 
+    log2FC_col = "logFC", 
+    pval_limit = 0.05, 
+    log2FC_limits = c(0, 0), 
+    gene.selection.methods = hyperparameters$signature.selection.method,
+    lengths = hyperparameters$signature.lengths, 
+    sides = hyperparameters$signature.side,
+    remove_regex = hyperparameters$signature.rm.regex)
+  
+  # 3. Get signature score
+  signature.score <- GetSignatureScore(
+    object = PrepareData.list$data.train, 
+    assay = "RNA", slot = "data",
+    signature = signature.list, 
+    method = hyperparameters$signature.methods)
+  
+  # 4. Get the signature score
+  pred.res <- BinarizeSignaturePrediction(
+    x.train = signature.score, 
+    x.test = NULL,
+    method = "threshold", 
+    x.threshold = score.threshold)
+  
+  # 5. Get return data.frame
+  signature.pred <- cbind(signature.score, pred.res$y.train.pred)
+  colnames(signature.pred) <- c("score", "pred")
+  
+  return(signature.pred)
+}
+
 #' Get signature from DE results
 #' 
 #' Function to get signature from DE results
@@ -259,6 +337,9 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
 #' @param DEA.method character; Differential-Expression-Analysis method name. 
 #' possible values are possible values in runDEA()
 #' Default = "wilcox" from Seurat::FindMarkers()
+#' @param DEA.data data.frame or matrix; The input matrix for the DEA. 
+#' Rows = samples, Columns = features. If NULL, the DEA.data is x
+#' Default = NULL
 #' @param signature.selection.method character vector; signatuire gene selection method.
 #' possible values are "logFC" (select from logFC) or "pval" (select from pval)
 #' Default = c("logFC")
@@ -275,6 +356,9 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
 #' Possible values are methods in GetSignatureScore()
 #' @param assay character; The Seurat assay. Default = "RNA"
 #' @param slot character; The Seurat slot. Default = "counts"
+#' @param col.aggregate character; Column in data.train@meta.data to combine cells into pseudobulk. 
+#' If NULL, no pseudobulk integration
+#' Default = NULL
 #' @param folds.save.folder character; Folder to save the model information. 
 #' If null doesn't save anything. If not null, it will save the following data into the folder: 
 #' - dea.res.rds: DEA results as in RunDEA()
@@ -292,12 +376,14 @@ SignatureCrossValidation <- function(data.train, y.label,
                                      y.sample = NULL, 
                                      y.covariates = NULL, 
                                      DEA.method = DEA.METHODS, 
+                                     DEA.data = NULL,
                                      signature.selection.method = c("logFC"),
                                      signature.lengths = c("20"), 
                                      signature.sides = c("both"), 
                                      signature.rm.regex = NULL,
                                      signature.methods = c("AUCell"),
                                      assay = "RNA", slot = "counts", 
+                                     col.aggregate = NULL, 
                                      sample.weights = NULL,
                                      folds.save.folder = NULL, 
                                      save.full.model = F){
@@ -317,18 +403,24 @@ SignatureCrossValidation <- function(data.train, y.label,
   # Part 1: Differential Gene expression Analysis
   message("Run Differential Gene expression Analysis")
   
+  if (is.null(DEA.data)){
+    DEA.data <- data.train
+  }
+  
   dea.res <- RunDEA(
-    object = data.train, 
+    object = DEA.data, 
     col.DE_group = y.label, 
     col.sample = y.sample, 
     col.covariate = y.covariates, 
-    assay = "RNA", slot = "counts", 
-    method = DEA.method)
+    assay = assay, slot = slot, 
+    method = DEA.method, 
+    col.aggregate = col.aggregate)
+  
+  message("Finish")
   
   if (!is.null(folds.save.folder)){
     saveRDS(dea.res, file = paste0(folds.save.folder, "dea.res.rds"))
   }
-  
   
   # Part 2: Create signature
   message("Get Signatures")
@@ -387,7 +479,7 @@ SignatureCrossValidation <- function(data.train, y.label,
     # Get the training signature score
     signature.score.tmp <- GetSignatureScore(
       object = data.train, 
-      assay = "RNA", slot = "counts",
+      assay = assay, slot = slot,
       ranks = ranks.matrices.train[[ss.method]],
       signature = signature.list, 
       method = ss.method)
@@ -441,7 +533,7 @@ SignatureCrossValidation <- function(data.train, y.label,
       } else {
         x.test = NULL
       }
-      pred.res <- GetSignaturePrediction(
+      pred.res <- BinarizeSignaturePrediction(
         x.train = signature.score.train[,hyper.col], 
         x.test = x.test,
         method = "greedy", 
@@ -451,6 +543,7 @@ SignatureCrossValidation <- function(data.train, y.label,
       # Get train & test predictions: 
       y.train.pred <- pred.res$y.train.pred
       y.test.pred <- pred.res$y.test.pred
+      x.threshold <- pred.res$x.threshold
       
       if (!is.null(folds.save.folder)){
         y.train.pred.df.tmp <- data.frame(y.train.pred, row.names = colnames(data.train))
@@ -499,14 +592,14 @@ SignatureCrossValidation <- function(data.train, y.label,
       cat("\n")
     }
     
-    # TODO add y.label, y.sample = NULL, y.covariates = NULL, DEA.method = DEA.METHODS, ASSAY AND SLOT
     res.info <- list(
       "DEA.method" = DEA.method,
       "signature.methods" = str.split.res[1],
       "signature.rm.regex" = str.split.res[2],
       "signature.selection.method" = str.split.res[3],
       "signature.side" = str.split.res[4],
-      "signature.lengths" = str.split.res[5]
+      "signature.lengths" = str.split.res[5],
+      "signature.x.threshold" = x.threshold
     )
     names(res.train.metrics) <- paste0("train.", names(res.train.metrics))
     names(res.train.metrics.acc) <- paste0("train.", names(res.train.metrics.acc))
@@ -527,6 +620,10 @@ SignatureCrossValidation <- function(data.train, y.label,
   }
   
   return(res.inner)
+  
+  # # TODO rm
+  # }
+  # return(list())
 }
 
 #' Get Signature Accuracy
@@ -551,7 +648,7 @@ GetSignatureAccuracy <- function(x, y, th, weights = replicate(n = length(x), ex
 }
 
 
-#' Get Signature Prediction
+#' Get BinarySignature Prediction
 #' 
 #' Function to get the prediction for some numerical score. In brief, a threshold 
 #' is applied on a score vector to get binary prediction which are returned by 
@@ -577,7 +674,7 @@ GetSignatureAccuracy <- function(x, y, th, weights = replicate(n = length(x), ex
 #' @return list("y.train.pred" = ..., "y.test.pred" = ...)
 #' 
 #' @export
-GetSignaturePrediction <- function(x.train, 
+BinarizeSignaturePrediction <- function(x.train, 
                                    method = c("greedy", "threshold"), 
                                    ground.truth = NULL,
                                    x.threshold = NULL,
@@ -587,14 +684,14 @@ GetSignaturePrediction <- function(x.train,
   
   # sanity checks + control inputs
   if (method == "threshold" & is.null(x.threshold)){
-    warning("GetSignaturePrediction: Method is 'threshold' and x.threshold is not defined. Continue with x.threshold = 0")
+    warning("BinarizeSignaturePrediction: Method is 'threshold' and x.threshold is not defined. Continue with x.threshold = 0")
     x.threshold <- 0
   } else if (method == "greedy" & is.null(ground.truth)){
     if (is.null(x.threshold)){
       x.threshold <- 0
     }
     method <- "threshold"
-    warning(paste0("GetSignaturePrediction: Method is 'greedy' and ground.truth is not defined. Continue with method = 'threshold' and x.threshold = ", x.threshold))
+    warning(paste0("BinarizeSignaturePrediction: Method is 'greedy' and ground.truth is not defined. Continue with method = 'threshold' and x.threshold = ", x.threshold))
   }
   
   if (method == "greedy"){
@@ -627,4 +724,6 @@ GetSignaturePrediction <- function(x.train,
   
   return(list("y.train.pred" = y.train.pred, "y.test.pred" = y.test.pred, "x.threshold" = x.threshold))
 }
+
+
 

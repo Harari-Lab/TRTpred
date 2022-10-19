@@ -16,12 +16,17 @@ NestedCrossValidation(
   hyperparams = NULL,
   data.trans.method = c("none", FEATURE.TRANS.METHODS),
   pca.explained.var.threshold = NULL,
+  rm.corr.features = F,
   DA.method = c("none", DA.METHODS),
   DA.p.adjust.method = P.ADJUST.METHODS,
   DA.p.val.threshold = 0.05,
   DA.event.per.variable = NULL,
   LR.prob.threhsold = 0.5,
-  DEA.method = DEA.METHODS
+  signature.col.aggregate = NULL,
+  DEA.method = DEA.METHODS,
+  DEA.data = NULL,
+  sample.weights = NULL,
+  folds.save.folder = NULL
 )
 }
 \arguments{
@@ -62,6 +67,10 @@ Default = "none" i.e. no transformation.}
 \item{pca.explained.var.threshold}{numeric: If not NULL, apply this threshold 
 to select PCs explaining more variance than the threhsold}
 
+\item{rm.corr.features}{logical: Do we remove the mutually correlated feature 
+while keeping the ones that best correlate with the outcome? 
+default = F}
+
 \item{DA.method}{character; The discriminant analysis (DA) method. 
 Possible values are "wilcox"
 Default = "none" i.e. no discriminant analysis}
@@ -79,8 +88,25 @@ Default = NULL (no selection on EPV)}
 
 \item{LR.prob.threhsold}{numeric; The probability threshold for the logitic regression}
 
+\item{signature.col.aggregate}{character; Column in y to combine cells into pseudobulk. 
+If NULL, no pseudobulk integration
+Default = NULL}
+
 \item{DEA.method}{character; The Differential-expression-analylsis method (see RunDEA())
 default = "wilcox" from the Seurat::FindMarker() function}
+
+\item{DEA.data}{data.frame or matrix; The input matrix for the DEA. 
+Rows = samples, Columns = features. If NULL, the DEA.data is x
+Default = NULL}
+
+\item{sample.weights}{data.frame (rows = observation, column = weight); The 
+observation weights data.frame. 
+Default = NULL i.e. 1 for each observation}
+
+\item{folds.save.folder}{character; Folder to save the fold model information. 
+If null doesn't save anything. if not null, a folder called "NCV_", fold.out.name, "_", fold.in.name
+will be created to store the model information in. 
+default = NULL}
 }
 \value{
 data.frame summarizing the Nested-cross-validation

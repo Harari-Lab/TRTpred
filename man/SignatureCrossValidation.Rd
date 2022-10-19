@@ -11,6 +11,7 @@ SignatureCrossValidation(
   y.sample = NULL,
   y.covariates = NULL,
   DEA.method = DEA.METHODS,
+  DEA.data = NULL,
   signature.selection.method = c("logFC"),
   signature.lengths = c("20"),
   signature.sides = c("both"),
@@ -18,7 +19,10 @@ SignatureCrossValidation(
   signature.methods = c("AUCell"),
   assay = "RNA",
   slot = "counts",
-  save.DEA.folder = NULL
+  col.aggregate = NULL,
+  sample.weights = NULL,
+  folds.save.folder = NULL,
+  save.full.model = F
 )
 }
 \arguments{
@@ -37,6 +41,10 @@ Default = NULL i.e. no covariates}
 \item{DEA.method}{character; Differential-Expression-Analysis method name. 
 possible values are possible values in runDEA()
 Default = "wilcox" from Seurat::FindMarkers()}
+
+\item{DEA.data}{data.frame or matrix; The input matrix for the DEA. 
+Rows = samples, Columns = features. If NULL, the DEA.data is x
+Default = NULL}
 
 \item{signature.selection.method}{character vector; signatuire gene selection method.
 possible values are "logFC" (select from logFC) or "pval" (select from pval)
@@ -60,6 +68,19 @@ Possible values are methods in GetSignatureScore()}
 \item{assay}{character; The Seurat assay. Default = "RNA"}
 
 \item{slot}{character; The Seurat slot. Default = "counts"}
+
+\item{col.aggregate}{character; Column in data.train@meta.data to combine cells into pseudobulk. 
+If NULL, no pseudobulk integration
+Default = NULL}
+
+\item{folds.save.folder}{character; Folder to save the model information. 
+If null doesn't save anything. If not null, it will save the following data into the folder: 
+- dea.res.rds: DEA results as in RunDEA()
+- signature.score.train.rds: signature.score.train data.frame (rows = cell name, col = score for different hyperparmaters)
+- signature.score.test.rds: signature.score.test data.frame (rows = cell name, col = score for different hyperparmaters)
+- y.train.pred.rds: y.train.pred data.frame (rows = cell name, col = prediction)
+- y.test.pred.rds: y.test.pred data.frame (rows = cell name, col = prediction)
+default = NULL}
 }
 \value{
 data.frame

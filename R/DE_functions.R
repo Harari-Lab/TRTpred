@@ -22,6 +22,65 @@ EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
 DESEQ.METHODS <- c("DESeq2_Wald", "DESeq2_LRT")
 SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 
+
+.n_unique <- function(x){length(unique(x))}
+.unique_1st <- function(x){unique(x)[1]}
+
+
+#' get Pseudo Bulk
+#' 
+#' Function to compute the pseudobulk information by combining information from single cells
+#' 
+#' @param data matrix, assay with rows = genes and columns = observations (single-cells)
+#' @param colData data.frame; columns = col data, rows = observations (single-cells)
+#' @param col.aggregate character; aggregation column in colData
+#' 
+#' @return list of two elements
+#' - data = aggregated data (matrix)
+#' - colData = aggreagted colData (data.frame)
+getPseudoBulk <- function(data, colData, col.aggregate){
+  
+  # Aggregate colData
+  colData.cols <- colnames(colData)
+  colData.cols <- colData.cols[colData.cols != col.aggregate]
+  
+  colData.n.unique <- colData %>% 
+    group_by(.dots = col.aggregate) %>% 
+    summarise(across(.cols = colData.cols, .n_unique))
+  colData.n.unique <- data.frame(colData.n.unique)
+  
+  if (any(colData.n.unique[, colData.cols] > 1)){
+    warning("getPseudoBulk: Confusion in aggregation of colData")
+  }
+  
+  colData.aggr <- colData %>% 
+    group_by(.dots = col.aggregate) %>% 
+    summarise(across(.cols = colData.cols, .unique_1st))
+  colData.aggr <- data.frame(colData.aggr)
+  rownames(colData.aggr) <- colData.aggr[[col.aggregate]]
+  colData.aggr <- colData.aggr[, colData.cols]
+  
+  # Aggregate expression data
+  gene.names <- rownames(data)
+  sample.names <- colnames(data)
+  
+  data.df <- data.frame(t(data), check.rows = F, check.names = F)
+  data.df$aggregate_col <- colData[[col.aggregate]]
+  
+  data.aggr <- data.df %>% 
+    group_by(aggregate_col) %>% 
+    summarise(across(all_of(gene.names), mean))
+  data.aggr <- data.frame(data.aggr, check.rows = F, check.names = F)
+  rownames(data.aggr) <- data.aggr$aggregate_col
+  data.aggr <- data.aggr[, gene.names]
+  
+  data.aggr <- as.matrix(t(data.aggr))
+  
+  return(list("data" = data.aggr, "colData" = colData.aggr))
+  
+}
+
+
 #' Run Differential-Expression Analysis
 #' 
 #' Function to run the differential expression analysis. This function calls the 
@@ -42,11 +101,17 @@ SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 #' @param col.covariate character vector; The names of the column in meta.data 
 #' corresponding to the covariates in the models
 #' Default = NULL
+#' @param col.aggregate character; Column in mca@meta.data to combine cells into pseudobulk. 
+#' If NULL, no pseudobulk integration
+#' Default = NULL
+#' 
+#' @return data.frame. The DE result data.frame
 RunDEA <- function(object, col.DE_group, 
                    assay = NULL, slot = "data", 
                    method = c(SEURAT.METHODS, EDGER.METHODS, LIMMA.METHODS, DESEQ.METHODS), 
                    col.sample = NULL, 
-                   col.covariate = NULL){
+                   col.covariate = NULL,
+                   col.aggregate = NULL){
   
   method <- match.arg(method) # default = "wilcox"
   
@@ -67,7 +132,8 @@ RunDEA <- function(object, col.DE_group,
                        method = gsub("edgeR_", "", method), # QFL or LRT
                        col.DE_group = col.DE_group, 
                        col.sample = col.sample, 
-                       col.covariate = col.covariate)
+                       col.covariate = col.covariate,
+                       col.aggregate = col.aggregate)
     
   } else if (method %in% DESEQ.METHODS){
     de.res <- RunDESeq2(mca = object, 
@@ -76,7 +142,8 @@ RunDEA <- function(object, col.DE_group,
                         method = gsub("DESeq2_", "", method), # Wald or LRT
                         col.DE_group = col.DE_group, 
                         col.sample = col.sample, 
-                        col.covariate = col.covariate)
+                        col.covariate = col.covariate,
+                        col.aggregate = col.aggregate)
     
   } else if (method %in% LIMMA.METHODS){
     de.res <- Runlimma(mca = object, 
@@ -85,7 +152,8 @@ RunDEA <- function(object, col.DE_group,
                        method = gsub("limma_", "", method), # voom or trend
                        col.DE_group = col.DE_group, 
                        col.sample = col.sample, 
-                       col.covariate = col.covariate)
+                       col.covariate = col.covariate,
+                       col.aggregate = col.aggregate)
   } else {
     stop("")
   } 
@@ -110,6 +178,9 @@ RunDEA <- function(object, col.DE_group,
 #' @param col.covariate, vector of character: A vector of colnames in mca's 
 #' meta.data defining the covariates to add in the DE design. 
 #' If NULL, no covariates are added. Default = c("Patient"). 
+#' @param col.aggregate character; Column in mca@meta.data to combine cells into pseudobulk. 
+#' If NULL, no pseudobulk integration
+#' Default = NULL
 #' 
 #' @return data.frame. The DE result data.frame
 Runlimma <- function(mca, 
@@ -117,7 +188,8 @@ Runlimma <- function(mca,
                      method = c("voom", "trend"), 
                      col.DE_group = "DE_group", 
                      col.sample = "Patient", 
-                     col.covariate = c("Patient")){
+                     col.covariate = c("Patient"),
+                     col.aggregate = NULL){
 
   method <- match.arg(method)
   
@@ -151,18 +223,42 @@ Runlimma <- function(mca,
     mca[[col.DE_group]] <- factor(mca[[col.DE_group]])
   }
   
-  expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
-  
-  dge <- edgeR::DGEList(counts = expr.data, group = mca@meta.data[[col.sample]])
-  dge <- edgeR::calcNormFactors(dge)
-  
-  
+  # Define formula with colData columns
   if (!is.null(col.covariate)){
     formula_str <- paste0("~ 0 + ", col.DE_group, " + ", paste(col.covariate, collapse = " + "))
+    column.colData <- c(col.DE_group, col.sample, col.covariate)
   } else {
     formula_str <- paste0("~ 0 + ", col.DE_group)
+    column.colData <- c(col.DE_group, col.sample)
   }
-  design <- model.matrix(formula(formula_str), data = mca@meta.data)
+  
+  # Prepare expr.data + colData
+  if (is.null(col.aggregate)){
+    expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
+    
+    colData <- mca@meta.data[, unique(column.colData)]
+    colnames(colData) <- gsub(".*\\:", "", colnames(colData))
+  } else { # col.aggregate <- "TCR_patient"
+    
+    expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
+    
+    colData <- mca@meta.data[, unique(c(column.colData, col.aggregate))]
+    colnames(colData) <- gsub(".*\\:", "", colnames(colData))
+    
+    pseudobulk.list <- getPseudoBulk(data = expr.data, colData = colData, col.aggregate = col.aggregate)
+    expr.data <- pseudobulk.list$data
+    colData <- pseudobulk.list$colData
+  }
+  
+  # Negative values are not allowed
+  if (min(expr.data, na.rm = T) < 0){
+    expr.data <- expr.data + abs(min(expr.data, na.rm = T))
+  }
+  
+  dge <- edgeR::DGEList(counts = expr.data, group = colData[[col.sample]])
+  dge <- edgeR::calcNormFactors(dge)
+  
+  design <- model.matrix(formula(formula_str), data = colData)
   colnames(design) <- gsub(col.DE_group, "", colnames(design))
   
   if (method == "trend"){
@@ -175,7 +271,7 @@ Runlimma <- function(mca,
   }
   
   # TODO: CHECK IF WE NEED duplicateCorrelation
-  # dupcor <- duplicateCorrelation(vm, design = design, block = mca@meta.data$Patient)
+  # dupcor <- duplicateCorrelation(vm, design = design, block = colData$Patient)
   
   contr <- limma::makeContrasts(yes - no, levels = colnames(coef(fit)))
   contr.fit <- limma::contrasts.fit(fit, contr)
@@ -213,6 +309,9 @@ Runlimma <- function(mca,
 #' @param col.covariate, vector of character: A vector of colnames in mca's 
 #' meta.data defining the covariates to add in the DE design. 
 #' If NULL, no covariates are added. Default = c("Patient"). 
+#' @param col.aggregate character; Column in mca@meta.data to combine cells into pseudobulk. 
+#' If NULL, no pseudobulk integration
+#' Default = NULL
 #' 
 #' @return data.frame. The DE result data.frame
 RunedgeR <- function(mca, 
@@ -220,7 +319,8 @@ RunedgeR <- function(mca,
                      method = c("QFL", "LRT"), 
                      col.DE_group = "DE_group", 
                      col.sample = "Patient", 
-                     col.covariate = c("Patient")){
+                     col.covariate = c("Patient"), 
+                     col.aggregate = NULL){
   
   method <- match.arg(method)
   
@@ -254,17 +354,48 @@ RunedgeR <- function(mca,
     mca[[col.DE_group]] <- factor(mca[[col.DE_group]])
   }
   
-  expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
-  
-  dge <- edgeR::DGEList(counts = expr.data, group = mca@meta.data[[col.sample]])
-  dge <- edgeR::calcNormFactors(dge)
-  
+  # Define formula with colData columns
   if (!is.null(col.covariate)){
     formula_str <- paste0("~ 0 + ", col.DE_group, " + ", paste(col.covariate, collapse = " + "))
+    column.colData <- c(col.DE_group, col.sample, col.covariate)
   } else {
     formula_str <- paste0("~ 0 + ", col.DE_group)
+    column.colData <- c(col.DE_group, col.sample)
   }
-  design <- model.matrix(formula(formula_str), data = mca@meta.data)
+  
+  # Prepare expr.data + colData
+  if (is.null(col.aggregate)){
+    expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
+    
+    colData <- mca@meta.data[, unique(column.colData)]
+    colnames(colData) <- gsub(".*\\:", "", colnames(colData))
+  } else { # col.aggregate <- "TCR_patient"
+    
+    expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
+    
+    colData <- mca@meta.data[, unique(c(column.colData, col.aggregate))]
+    colnames(colData) <- gsub(".*\\:", "", colnames(colData))
+    
+    pseudobulk.list <- getPseudoBulk(data = expr.data, colData = colData, col.aggregate = col.aggregate)
+    expr.data <- pseudobulk.list$data
+    colData <- pseudobulk.list$colData
+  }
+  
+  # Negative values are not allowed
+  if (min(expr.data, na.rm = T) < 0){
+    expr.data <- expr.data + abs(min(expr.data, na.rm = T))
+  }
+  
+  # Negative values are not allowed
+  if (min(expr.data, na.rm = T) < 0){
+    expr.data <- expr.data + abs(min(expr.data, na.rm = T))
+  }
+  
+  dge <- edgeR::DGEList(counts = expr.data, group = colData[[col.sample]])
+  
+  dge <- edgeR::calcNormFactors(dge)
+  
+  design <- model.matrix(formula(formula_str), data = colData)
   colnames(design) <- gsub(col.DE_group, "", colnames(design))
   
   dge <- edgeR::estimateDisp(dge, design = design)
@@ -301,7 +432,7 @@ RunedgeR <- function(mca,
     
   }
 
-  return(res)
+  return(res) 
 }
 
 #' DESeq2 DE function implementation
@@ -320,6 +451,9 @@ RunedgeR <- function(mca,
 #' @param col.covariate, vector of character: A vector of colnames in mca's 
 #' meta.data defining the covariates to add in the DE design. 
 #' If NULL, no covariates are added. Default = c("Patient").
+#' @param col.aggregate character; Column in mca@meta.data to combine cells into pseudobulk. 
+#' If NULL, no pseudobulk integration
+#' Default = NULL
 #' 
 #' @return data.frame. The DE result data.frame
 RunDESeq2 <- function(mca, 
@@ -327,7 +461,8 @@ RunDESeq2 <- function(mca,
                       method = c("Wald", "LRT"), 
                       col.DE_group = "DE_group", 
                       col.sample = "Patient", 
-                      col.covariate = c("Patient")){
+                      col.covariate = c("Patient"),
+                      col.aggregate = NULL){
   
   method <- match.arg(method)
   
@@ -362,11 +497,7 @@ RunDESeq2 <- function(mca,
     mca[[col.DE_group]] <- factor(mca[[col.DE_group]])
   }
   
-  expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
-  
-  # round the expr.data:
-  expr.data <- round(expr.data, digits = 0)
-  
+  # Define design with colData columns 
   if (!is.null(col.covariate)){
     formula_str <- paste0("~ ", col.DE_group, " + ", paste(col.covariate, collapse = " + "))
     column.colData <- c(col.DE_group, col.sample, col.covariate)
@@ -375,28 +506,78 @@ RunDESeq2 <- function(mca,
     column.colData <- c(col.DE_group, col.sample)
   }
   design <- formula(formula_str)
-  colData <- mca@meta.data[, unique(column.colData)]
-  colnames(colData) <- gsub(".*\\:", "", colnames(colData))
+  
+  # Prepare expr.data + colData
+  if (is.null(col.aggregate)){
+    expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
+    
+    colData <- mca@meta.data[, unique(column.colData)]
+    colnames(colData) <- gsub(".*\\:", "", colnames(colData))
+  } else { # col.aggregate <- "TCR_patient"
+    
+    expr.data <- Seurat::GetAssayData(object = mca, slot = slot, assay = assay)
+    
+    colData <- mca@meta.data[, unique(c(column.colData, col.aggregate))]
+    colnames(colData) <- gsub(".*\\:", "", colnames(colData))
+    
+    pseudobulk.list <- getPseudoBulk(data = expr.data, colData = colData, col.aggregate = col.aggregate)
+    expr.data <- pseudobulk.list$data
+    colData <- pseudobulk.list$colData
+  }
+  
+  # Negative values are not allowed
+  if (min(expr.data, na.rm = T) < 0){
+    expr.data <- expr.data + abs(min(expr.data, na.rm = T))
+  }
+  
+  # round the expr.data:
+  expr.data <- round(expr.data, digits = 0)
   
   dds = DESeq2::DESeqDataSetFromMatrix(countData = expr.data,
                                colData = colData, 
                                design = design) # design = ~ design
   
   if (method == "LRT"){
-    dds.res <- DESeq2::DESeq(object = dds, 
-                 test = "LRT", 
-                 fitType = "local", # c("parametric", "local", "mean", "glmGamPoi") 
-                 sfType = "poscounts", # c("ratio", "poscounts", "iterate")
-                 betaPrior = FALSE,  # TRUE or FALSE,
-                 reduced =  ~ 1
-                )
+    tryCatch(
+      expr = {
+        dds.res <- DESeq2::DESeq(object = dds, 
+                                 test = "LRT", 
+                                 fitType = "local", # c("parametric", "local", "mean", "glmGamPoi") 
+                                 sfType = "poscounts", # c("ratio", "poscounts", "iterate")
+                                 betaPrior = FALSE,  # TRUE or FALSE,
+                                 reduced =  ~ 1)
+      },
+      error = function(cond){
+        message("Error in DESeq. Original Message is: ")
+        message(cond, "\n")
+        message("Continue with suggested solution")
+        
+        dds <- DESeq2::estimateSizeFactors(object = dds)
+        dds <- DESeq2::estimateDispersionsGeneEst(object = dds)
+        dispersions(dds) <- mcols(dds)$dispGeneEst
+        dds.res <- DESeq2::nbinomLRT(object = dds, reduced =  ~ 1)
+      }
+    )
   } else {
-    dds.res <- DESeq2::DESeq(object = dds, 
-                 test = "Wald", 
-                 fitType = "local", # c("parametric", "local", "mean", "glmGamPoi") 
-                 sfType = "poscounts", # c("ratio", "poscounts", "iterate")
-                 betaPrior = FALSE # TRUE or FALSE
-                )
+    tryCatch(
+      expr = {
+        dds.res <- DESeq2::DESeq(object = dds, 
+                                  test = "Wald", 
+                                  fitType = "local", # c("parametric", "local", "mean", "glmGamPoi") 
+                                  sfType = "poscounts", # c("ratio", "poscounts", "iterate")
+                                  betaPrior = FALSE) # TRUE or FALSE
+      },
+      error = function(cond){
+        message("Error in DESeq. Original Message is: ")
+        message(cond, "\n")
+        message("Continue with suggested solution")
+        
+        dds <- DESeq2::estimateSizeFactors(object = dds, )
+        dds <- DESeq2::estimateDispersionsGeneEst(object = dds)
+        dispersions(dds) <- mcols(dds)$dispGeneEst
+        dds.res <- DESeq2::nbinomWaldTest(object = dds, betaPrior = FALSE)
+      }
+    )
   }
   
   # note on the parmater selection above: 

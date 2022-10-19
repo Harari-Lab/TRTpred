@@ -11,7 +11,8 @@ RunDEA(
   slot = "data",
   method = c(SEURAT.METHODS, EDGER.METHODS, LIMMA.METHODS, DESEQ.METHODS),
   col.sample = NULL,
-  col.covariate = NULL
+  col.covariate = NULL,
+  col.aggregate = NULL
 )
 }
 \arguments{
@@ -36,6 +37,13 @@ Default = NULL}
 \item{col.covariate}{character vector; The names of the column in meta.data 
 corresponding to the covariates in the models
 Default = NULL}
+
+\item{col.aggregate}{character; Column in mca@meta.data to combine cells into pseudobulk. 
+If NULL, no pseudobulk integration
+Default = NULL}
+}
+\value{
+data.frame. The DE result data.frame
 }
 \description{
 Function to run the differential expression analysis. This function calls the 

@@ -4,17 +4,21 @@
 \alias{GetSignatureAccuracy}
 \title{Get Signature Accuracy}
 \usage{
-GetSignatureAccuracy(x, y, th)
+GetSignatureAccuracy(x, y, th, weights = replicate(n = length(x), expr = 1))
 }
 \arguments{
 \item{x}{numerical predictions}
 
 \item{y}{logical ground truth}
 
-\item{th}{numerical threhsold to apply on x to get logical predictions}
+\item{th}{numerical threshold to apply on x to get logical predictions}
+
+\item{weights}{vector of numerical of length identical to x. 
+It represent the weights of the samples
+Default vector of ones}
 }
 \value{
-accuracy for x for a threshold th
+accuracy for x for a threshold th with samples weighted by weights
 }
 \description{
 Function that compute accuracy based on a threshold

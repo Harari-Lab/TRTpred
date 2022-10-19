@@ -6,6 +6,68 @@ suppressMessages(library(stats))
 
 EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
 
+DEFAULT.LR.HYPERPARAMS <- list("alpha" = 0, "lambda" = 0)
+
+
+#' Get Prediction for the LR model
+#' 
+#' The function to get prediction from a LR model 
+#' 
+#' @param x data.frame/matrix. The input data with the dependent and independent variables. 
+#' @param path.folder character; Folder to retrieve the model
+#' @param hyperparameters list; The LR hyperparmeters
+#' Elements of list are 
+#'   - "alpha" (L2-regularization): Vector of alpha values (0-1)
+#'   - "lambda" (L1-regularization): Vector of lambda values (0-1)
+#' @param model.file.name character; the file name of the model in the folder 
+#' if null retrive it from "res_fit_"<alpha>"_"<lambda>".rds"
+#' Default = NULL
+#' @param prob.threshold numerical; The LR probability threshold
+#' Default = 0.5
+#' 
+#' @return data.frame; Rows = barcode names in x. Cols = "score" and "pred"
+#' 
+#' @export
+GetLRPrediction <- function(x, path.folder,
+                            hyperparameters = DEFAULT.LR.HYPERPARAMS,
+                            model.file.name = NULL,
+                            prob.threshold = 0.5){
+  
+  # 0. Check hyperparameters
+  for (name_ in names(DEFAULT.LR.HYPERPARAMS)){
+    if (!(name_ %in% names(hyperparameters))){
+      hyperparameters[[name_]] <- DEFAULT.LR.HYPERPARAMS[[name_]]
+    }
+  }
+  
+  # 1. Get the LR model i.e. the glmnet object
+  hyperparams_key <- paste(hyperparameters$alpha, hyperparameters$lambda, sep = "_")
+  
+  # Get the model.file.name
+  if (is.null(model.file.name)){
+    model.file.name <- paste0("res_fit_", hyperparams_key, ".rds")
+  }
+  # Get model.res
+  model.path <- paste0(path.folder, model.file.name)
+  if (file.exists(model.path)){
+    res.fit <- readRDS(file = model.path)
+  } else {
+    stop("GetLRPrediction: Model path does not exist. Please check : ", model.path)
+  }
+  
+  # 2. Get prediction
+  colnames(x) <- gsub("[-]", "..", colnames(x))
+  y.prob  <- stats::predict(object = res.fit, newdata = x, type = "response")[,1]
+  y.pred <- y.prob < prob.threshold
+  
+  # 3. Get return data.frame
+  LR.pred <- data.frame("score" = y.prob, "pred" = y.pred, row.names = rownames(x))
+  
+  return(LR.pred)
+}
+
+
+
 #' Logitic Regression Cross validation function
 #' 
 #' The function to perform logistic regression within a cross-validation frame-work
@@ -38,11 +100,10 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
                               save.full.model = F){
   
   # Sanity checks:
-  if (!("lambda" %in% names(hyperparams))){
-    hyperparams$lambda <- c(0)
-  }
-  if (!("alpha" %in% names(hyperparams))){
-    hyperparams$lambda <- c(0)
+  for (name_ in names(DEFAULT.LR.HYPERPARAMS)){
+    if (!(name_ %in% names(hyperparams))){
+      hyperparams[[name_]] <- DEFAULT.LR.HYPERPARAMS[[name_]]
+    }
   }
   
   y.columns <- gsub(" *~.*", "", design.str)
@@ -71,10 +132,17 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
     y.test.pred.df <- data.frame(row.names = rownames(data.test))
     beta.coef.df <- data.frame(row.names = x.columns)
   }
+  
+  if (is.null(sample.weights)){
+    weights <- replicate(n = nrow(data.train), expr = 1)
+  } else {
+    weights <- sample.weights[rownames(data.train),1]
+  }
+  
   if (length(x.columns) > 1){
     for (lambda in hyperparams$lambda){ # lambda <- 0.5
       for(alpha in hyperparams$alpha){ # alpha <- 0.1
-        
+        # <alpha>_<lambda>
         hyperparams_key <- paste(alpha, lambda, sep = "_")
         
         # Train the models
@@ -84,7 +152,7 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
           data = data.train,
           family = "binomial", 
           alpha = alpha, 
-          weights = sample.weights[rownames(data.train),1],
+          weights = weights,
           lambda = lambda)
         
         if (!is.null(folds.save.folder)){
@@ -94,6 +162,7 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
           
           # DO NOT do this --> Way to space heavy!!! 
           if (save.full.model){
+            # file name = "res_fit_"<alpha>"_"<lambda>".rds"
             saveRDS(res.fit, file = paste0(folds.save.folder, "res_fit_", hyperparams_key, ".rds"))
           }
         }
