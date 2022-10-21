@@ -79,7 +79,7 @@ GetPredictionSignature <- function(x, path.folder,
   
   # 3. Get signature score
   signature.score <- GetSignatureScore(
-    object = PrepareData.list$data.train, 
+    object = x, 
     assay = "RNA", slot = "data",
     signature = signature.list, 
     method = hyperparameters$signature.methods)
