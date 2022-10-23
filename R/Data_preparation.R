@@ -154,12 +154,12 @@ PrepareData <- function(
     data.train <- cbind(x.train, y.train)
     if (!is.null(x.test)){
       data.test <- cbind(x.test, y.test)
-    }
-    if (!is.null(DEA.data)){
-      DEA.data <- cbind(DEA.data, y.train)
     } else {
       data.test <- NULL
-    }
+    } 
+    if (!is.null(DEA.data)){
+      DEA.data <- cbind(DEA.data, y.train)
+    } 
   } else {
     data.train <- cbind(x.train, y.train)
     data.train <- cbind(x.train, y.train)
@@ -172,7 +172,6 @@ PrepareData <- function(
       DEA.data <- cbind(DEA.data, y.train)
     }
   }
-  
   
   # Get return list
   return.list <- list()
