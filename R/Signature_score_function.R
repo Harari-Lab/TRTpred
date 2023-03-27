@@ -24,22 +24,25 @@ SIGNATURE.SCORE.METHODS <- c("average", "UCell", "AUCell", "singscore")
 #' default = "data"
 #' @param method character: The signature score method. 
 #' possible methods are "average" (default), "UCell", "AUCell", "singscore"
-#' @param scale logical: Weather to scale signature score or not.
+#' @param to.scale logical: Weather to scale signature score or not.
 #' 
-#' @return data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' @return list with three elements: 
+#' score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' scale.mean: mean value to scale (if to.scale)
+#' scale.sd: sd value to scale (if to.scale)
 #' 
 #' @export
 GetSignatureScore <- function(object, signature, ranks = NULL,
                     assay = "RNA", slot = "data",
                     method = SIGNATURE.SCORE.METHODS,
-                    scale = F){
+                    to.scale = T, scale.params = NULL){
   
   
   method <- match.arg(method)
   
   for (signature.key in names(signature)){
     if (!all(names(signature[[signature.key]]) %in% c("up", "down"))){
-      print("error")
+      stop("GetSignatureScore: names of signature needs to be up or down")
     }
   }
   
@@ -47,16 +50,16 @@ GetSignatureScore <- function(object, signature, ranks = NULL,
   
   switch(method, 
          average = {
-           res <- RunSigScoreAverage(X = expr.data, signature = signature, scale = scale)
+           res <- RunSigScoreAverage(X = expr.data, signature = signature, to.scale = to.scale, scale.params = scale.params)
          },
          UCell = {
-           res <- RunSigScoreUCell(X = expr.data, signature = signature, ranks = ranks, scale = scale)
+           res <- RunSigScoreUCell(X = expr.data, signature = signature, ranks = ranks, to.scale = to.scale, scale.params = scale.params)
          },
          AUCell = {
-           res <- RunSigScoreAUCell(X = expr.data, signature = signature, ranks = ranks, scale = scale)
+           res <- RunSigScoreAUCell(X = expr.data, signature = signature, ranks = ranks, to.scale = to.scale, scale.params = scale.params)
          },
          singscore = {
-           res <- RunSigScoreSingscore(X = expr.data, signature = signature, ranks = ranks, scale = scale)
+           res <- RunSigScoreSingscore(X = expr.data, signature = signature, ranks = ranks, to.scale = to.scale, scale.params = scale.params)
          })
   
   return(res)
@@ -69,12 +72,15 @@ GetSignatureScore <- function(object, signature, ranks = NULL,
 #' 
 #' @param X matrix; The matrix. Columns = cells, rows = some features
 #' @param signature list: signature as defined in GetSignature()
-#' @param scale logical: Weather to scale signature score or not.
+#' @param to.scale logical: Weather to scale signature score or not.
 #' 
-#' @return data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' @return list with three elements: 
+#' score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' scale.mean: mean value to scale (if to.scale)
+#' scale.sd: sd value to scale (if to.scale)
 #' 
 #' @export
-RunSigScoreAverage <- function(X, signature, scale = F){
+RunSigScoreAverage <- function(X, signature, to.scale = T, scale.params = NULL){
   
   res <- data.frame(row.names = colnames(X))
   for (signature.key in names(signature)){
@@ -82,6 +88,13 @@ RunSigScoreAverage <- function(X, signature, scale = F){
     if (length(s_up) == 0){s_up <- NULL}
     s_down <- signature[[signature.key]]$down
     if (length(s_down) == 0){s_down <- NULL}
+    
+    missing_genes <- c(s_up[!(s_up %in% rownames(X))], s_down[!(s_down %in% rownames(X))])
+    if (length(missing_genes) > 0){
+      warning("RunSigScoreAverage: Genes in signature are missing\n", paste(missing_genes, collapse = ", "))
+      s_up <- s_up[s_up %in% rownames(X)]
+      s_down <- s_down[s_down %in% rownames(X)]
+    }
     
     if (!is.null(s_up)){
       s_up <- s_up[!is.na(s_up)]
@@ -114,9 +127,26 @@ RunSigScoreAverage <- function(X, signature, scale = F){
     res <- cbind(res, res.tmp)
   }
   
-  # res$signature_score_scaled <- scale(res$signature_score, center = TRUE, scale = TRUE)
   
-  return(res)
+  if (to.scale){
+    center <- T
+    if ("mean" %in% names(scale.params)){
+      center <- scale.params[["mean"]]
+    }
+    scale <- T
+    if ("sd" %in% names(scale.params)){
+      scale <- scale.params[["sd"]]
+    }
+    res.scaled <-  scale(res, center = center, scale = scale)
+    res <- data.frame(res.scaled, check.names = F, check.rows = F)
+    scale.mean <- as.numeric(attr(res.scaled, "scaled:center"))
+    scale.sd <- as.numeric(attr(res.scaled, "scaled:scale"))
+  } else {
+    scale.mean <- as.numeric(NA)
+    scale.sd <- as.numeric(NA)
+  }
+  
+  return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
 }
 
 #' Run the UCell signature score
@@ -127,12 +157,15 @@ RunSigScoreAverage <- function(X, signature, scale = F){
 #' @param ranks rank-matrix as defined by UCell::StoreRankings_UCell(X). 
 #' If provided, the function does not compute the rankings from X
 #' @param signature list: signature as defined in GetSignature()
-#' @param scale logical: Weather to scale signature score or not.
+#' @param to.scale logical: Weather to scale signature score or not.
 #' 
-#' @return data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' @return list with three elements: 
+#' score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' scale.mean: mean value to scale (if to.scale)
+#' scale.sd: sd value to scale (if to.scale)
 #' 
 #' @export
-RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){ 
+RunSigScoreUCell <- function(X, signature, ranks = NULL, to.scale = T, scale.params = NULL){ 
   
   if (is.null(ranks)){
     ranks <- UCell::StoreRankings_UCell(X)
@@ -175,6 +208,7 @@ RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){
   if (length(signature.input) > 0){
     res <- UCell::ScoreSignatures_UCell(features = signature.input, # list(res = s_up_down), 
                                         precalc.ranks = ranks, w_neg = 1)
+    res <- data.frame(res, check.rows = F, check.names = F)
   } 
   if (length(missing.signatures) > 0){
     for (col_ in missing.signatures){
@@ -184,7 +218,25 @@ RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){
   
   colnames(res) <- gsub("_UCell$", "", colnames(res))
   
-  return(res)
+  if (to.scale){
+    center <- T
+    if ("mean" %in% names(scale.params)){
+      center <- scale.params[["mean"]]
+    }
+    scale <- T
+    if ("sd" %in% names(scale.params)){
+      scale <- scale.params[["sd"]]
+    }
+    res.scaled <-  scale(res, center = center, scale = scale)
+    res <- data.frame(res.scaled, check.names = F, check.rows = F)
+    scale.mean <- as.numeric(attr(res.scaled, "scaled:center"))
+    scale.sd <- as.numeric(attr(res.scaled, "scaled:scale"))
+  } else {
+    scale.mean <- as.numeric(NA)
+    scale.sd <- as.numeric(NA)
+  }
+  
+  return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
 }
 
 #' Run the AUCell signature score
@@ -195,12 +247,15 @@ RunSigScoreUCell <- function(X, signature, ranks = NULL, scale = F){
 #' @param ranks rank-matrix as defined by AUCell::AUCell_buildRankings(). 
 #' If provided, the function does not compute the rankings from X
 #' @param signature list: signature as defined in GetSignature()
-#' @param scale logical: Weather to scale signature score or not.
+#' @param to.scale logical: Weather to scale signature score or not.
 #' 
-#' @return data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' @return list with three elements: 
+#' score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' scale.mean: mean value to scale (if to.scale)
+#' scale.sd: sd value to scale (if to.scale)
 #' 
 #' @export
-RunSigScoreAUCell <- function(X, signature, ranks = NULL, scale = F){ 
+RunSigScoreAUCell <- function(X, signature, ranks = NULL, to.scale = T, scale.params = NULL){ 
   
   if (is.null(ranks)){
     ranks <- AUCell::AUCell_buildRankings(exprMat = X, plotStats = F, verbose = F)
@@ -232,7 +287,7 @@ RunSigScoreAUCell <- function(X, signature, ranks = NULL, scale = F){
                                   normAUC = T, verbose = F)
     
     
-    res <- data.frame(t(AUCell::getAUC(res)))
+    res <- data.frame(t(AUCell::getAUC(res)), check.names = F)
   } 
   
   for (signature.key in names(signature)){
@@ -250,8 +305,26 @@ RunSigScoreAUCell <- function(X, signature, ranks = NULL, scale = F){
   }
   
   res <- res[, names(signature), drop = F]
-
-  return(res)
+  
+  if (to.scale){
+    center <- T
+    if ("mean" %in% names(scale.params)){
+      center <- scale.params[["mean"]]
+    }
+    scale <- T
+    if ("sd" %in% names(scale.params)){
+      scale <- scale.params[["sd"]]
+    }
+    res.scaled <-  scale(res, center = center, scale = scale)
+    res <- data.frame(res.scaled, check.names = F, check.rows = F)
+    scale.mean <- as.numeric(attr(res.scaled, "scaled:center"))
+    scale.sd <- as.numeric(attr(res.scaled, "scaled:scale"))
+  } else {
+    scale.mean <- as.numeric(NA)
+    scale.sd <- as.numeric(NA)
+  }
+  
+  return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
 }
 
 #' Run the singscore signature score
@@ -262,12 +335,15 @@ RunSigScoreAUCell <- function(X, signature, ranks = NULL, scale = F){
 #' @param ranks rank-matrix as defined by singscore::rankGenes(). 
 #' If provided, the function does not compute the rankings from X
 #' @param signature list: signature as defined in GetSignature()
-#' @param scale logical: Weather to scale signature score or not.
+#' @param to.scale logical: Weather to scale signature score or not.
 #' 
-#' @return data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' @return list with three elements: 
+#' score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' scale.mean: mean value to scale (if to.scale)
+#' scale.sd: sd value to scale (if to.scale)
 #' 
 #' @export
-RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
+RunSigScoreSingscore <- function(X, signature, ranks = NULL, to.scale = T, scale.params = NULL){
   
   if (is.null(ranks)){
     ranks = singscore::rankGenes(as.matrix(X))
@@ -319,25 +395,6 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
   signature.one.sided.down <- GSEABase::GeneSetCollection(signature.one.sided.down)
   signature.input.up <- GSEABase::GeneSetCollection(signature.input.up)
   signature.input.down <- GSEABase::GeneSetCollection(signature.input.down)
-  
-  if (F){
-    test.up <- list()
-    test.dn <- list()
-    
-    test.up[["test.1"]] <- GSEABase::GeneSet(c("CXCL13", "LAG3", "RBPJ"), setName = "test.1")
-    test.dn[["test.1"]] <- GSEABase::GeneSet(c("TOX", "TNFRSF9", "CTLA4"), setName = "test.1")
-    test.up[["test.2"]] <- GSEABase::GeneSet(c("CXCL13", "LAG3", "RBPJ"), setName = "test.2")
-    test.dn[["test.2"]] <- GSEABase::GeneSet(c("LAG3"), setName = "test.2")
-    test.up <- GSEABase::GeneSetCollection(test.up)
-    test.dn <- GSEABase::GeneSetCollection(test.dn)
-    res.test <- singscore::multiScore(rankData = ranks, 
-                                      upSetColc = test.up, 
-                                      downSetColc = test.dn, 
-                                      centerScore = T, 
-                                      knownDirection = T)
-    res.test <- data.frame(t(res.test$Scores), check.names = F, check.rows = F)
-  }
-  
   
   res <- data.frame(row.names = colnames(X))
   if (length(signature.one.sided.up) > 0){
@@ -399,6 +456,29 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, scale = F){
       res[[col_]] <- 0
     }
   }
+  
+  
+  if (to.scale){
+    center <- T
+    if ("mean" %in% names(scale.params)){
+      center <- scale.params[["mean"]]
+    }
+    scale <- T
+    if ("sd" %in% names(scale.params)){
+      scale <- scale.params[["sd"]]
+    }
+    res.scaled <-  scale(res, center = center, scale = scale)
+    res <- data.frame(res.scaled, check.names = F, check.rows = F)
+    scale.mean <- as.numeric(attr(res.scaled, "scaled:center"))
+    scale.sd <- as.numeric(attr(res.scaled, "scaled:scale"))
+  } else {
+    scale.mean <- as.numeric(NA)
+    scale.sd <- as.numeric(NA)
+  }
+  
+  return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
+  
+  
   return(res) 
 }
 

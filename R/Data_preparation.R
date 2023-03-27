@@ -393,3 +393,117 @@ RemoveMutuallyCorrFeatures <- function(x, y, threshold = 0.8){
 
 
 
+PrepareTrainingDataFromSeurat <- function(SeuratObject, label, label.order = NULL,
+                                          assay = "RNA", slot = "data", 
+                                          DEA.assay = NULL, DEA.slot = "data", DEA.pseudobulk.col = NULL,
+                                          covariates = NULL,
+                                          sample.weights.col = NULL){
+  # ----------------------------------------------------------------------------
+  # sanity checks:
+  # ----------------------------------------------------------------------------
+  if (!(assay %in% names(SeuratObject@assays))){
+    stop("assay not in SeuratObject's assays")
+  }
+  if (is.null(attr(SeuratObject@assays[[assay]], slot))){
+    stop("slot not in SeuratObject's slots in the assay selected")
+  }
+  if (!(label %in% colnames(SeuratObject@meta.data))){
+    stop("label not in SeuratObject's meta.data")
+  }
+  if (!is.null(covariates)){
+    if (!all(covariates %in% colnames(SeuratObject@meta.data))){
+      stop("some covariates are not in SeuratObject's meta.data")
+    }
+  }
+  if (!is.null(DEA.assay)){
+    if (!(DEA.assay %in% names(SeuratObject@assays))){
+      stop("DEA.assay not in SeuratObject's assays")
+    }
+    if (!is.null(DEA.slot)){
+      if (is.null(attr(SeuratObject@assays[[DEA.assay]], DEA.slot))){
+        stop("slot not in SeuratObject's slots in the DEA.assay selected")
+      }
+    }
+  }
+  if (!is.null(DEA.pseudobulk.col)){
+    if (!(DEA.pseudobulk.col %in% colnames(SeuratObject@meta.data))){
+      stop("DEA.pseudobulk.col not in SeuratObject's meta.data")
+    }
+  }
+  
+  # ----------------------------------------------------------------------------
+  # Set Label as factor without NAs
+  # ----------------------------------------------------------------------------
+  
+  SeuratObject@meta.data$select <- !is.na(SeuratObject@meta.data[, label])
+  SeuratObject <- subset(SeuratObject, subset = select)
+  SeuratObject@meta.data$select <- NULL
+  
+  if (is.null(label.order)){label.order <- unique(SeuratObject@meta.data[, label])}
+  SeuratObject@meta.data[, label] <- factor(SeuratObject@meta.data[, label], levels = label.order)
+  
+  # ----------------------------------------------------------------------------
+  # Get input and output data
+  # ----------------------------------------------------------------------------
+  
+  # Get data.input
+  data.input <- Seurat::GetAssayData(object = SeuratObject, assay = assay, slot = slot)
+  data.input <- data.frame(t(data.input), check.rows = F, check.names = F)
+  
+  # Get data.output
+  data.output <- SeuratObject@meta.data
+  
+  # Get DEA data
+  if (!is.null(DEA.assay)){
+    DEA.data <- Seurat::GetAssayData(object = SeuratObject, assay = DEA.assay, slot = DEA.slot)
+    DEA.data <- data.frame(t(DEA.data), check.rows = F, check.names = F)
+    DEA.data <- DEA.data[rownames(data.input), colnames(data.input)]
+    
+    if (any(dim(DEA.data) != dim(data.input))){
+      warning("DEA.data not the same format as x. Lets try to harmonize the data")
+      tryCatch(expr = {
+        DEA.data <- DEA.data[rownames(data.input), colnames(data.input)]
+      }, error = function(cond){
+        stop("DEA.data should have the same columns and rows as x")
+      })
+    }
+    
+  } else {
+    DEA.data <- NULL
+  }
+  
+  # Get Sample weight
+  if (!is.null(sample.weights.col)){
+    if (sample.weights.col %in% colnames(SeuratObject@meta.data)){
+      # Get group.weight.df
+      group.weight.df <- data.frame(table(SeuratObject@meta.data[, sample.weights.col]))
+      rownames(group.weight.df) <- group.weight.df[, 1]
+      colnames(group.weight.df) <- c(sample.weights.col, "Count")
+      # Get weights
+      group.weight.df$weight <- sum(group.weight.df$Count)/(group.weight.df$Count * nrow(group.weight.df))
+      # Set weights per observation
+      SeuratObject@meta.data$weight <- group.weight.df[SeuratObject@meta.data[, sample.weights.col], ]$weight
+      
+      # Get final sample.weights (rows = observation, columns = weight)
+      sample.weights <- SeuratObject@meta.data[, "weight", drop = F]
+      
+      if (sum(sample.weights$weight) != ncol(SeuratObject)){
+        warning("The sum of weights need to equal to the number of observations")
+      }
+    } else {
+      warning("sample.weights.col: '", sample.weights.col, "' is not present in colnames(SeuratObject@meta.data) ",
+              "We continue the script without taking this into account")
+      sample.weights <- NULL
+    } 
+  } else {
+    sample.weights <- NULL
+  }
+  
+  # ----------------------------------------------------------------------------
+  # Return
+  # ----------------------------------------------------------------------------
+  
+  return(list("data.input" = data.input, "data.output" = data.output, "DEA.data" = DEA.data, "sample.weights" = sample.weights))
+}
+
+

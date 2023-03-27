@@ -26,6 +26,8 @@ DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20),
                                       "signature.methods" = c("AUCell"),
                                       "signature.selection.method" = c("logFC"))
 
+EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
+
 #' Get signature prediction from a given model
 #' 
 #' Function to get the signature model prediction when given the model. 
@@ -48,7 +50,9 @@ DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20),
 GetPredictionSignature <- function(x, path.folder, 
                                    DEA.file.name = "dea.res.rds", 
                                    hyperparameters = DEFAULT.SIGNATURE.HYPERPARAMS, 
-                                   score.threshold = 0){
+                                   score.threshold = 0,
+                                   score.to.scale = T, 
+                                   score.scale.params = NULL){
   
   # 0. Check hyperparameters:
   for (name_ in names(DEFAULT.SIGNATURE.HYPERPARAMS)){
@@ -82,10 +86,13 @@ GetPredictionSignature <- function(x, path.folder,
     object = x, 
     assay = "RNA", slot = "data",
     signature = signature.list, 
-    method = hyperparameters$signature.methods)
+    method = hyperparameters$signature.methods, 
+    to.scale = score.to.scale, 
+    scale.params = score.scale.params)
+  signature.score <- signature.score$score
   
   # 4. Get the signature score
-  pred.res <- BinarizeSignaturePrediction(
+  pred.res <- BinarizeScorePrediction(
     x.train = signature.score, 
     x.test = NULL,
     method = "threshold", 
@@ -386,7 +393,21 @@ SignatureCrossValidation <- function(data.train, y.label,
                                      col.aggregate = NULL, 
                                      sample.weights = NULL,
                                      folds.save.folder = NULL, 
-                                     save.full.model = F){
+                                     save.model = F, save.pred = F, save.score = F){
+  
+  # Sanity check on the saving of data
+  if (is.null(folds.save.folder)){
+    if (any(c(save.model, save.pred, save.score))){
+      warning("folds.save.folder is NULL but one or more of `save.model`, `save.pred`, `save.score` is set as TRUE: Nothing will be saved")
+      save.model = F;save.pred = F;save.score = F
+    }
+  } else {
+    if (dir.exists(folds.save.folder)){
+      if (any(!c(save.model, save.pred, save.score))){
+        warning("folds.save.folder exists but nothing will be saved since `save.model`, `save.pred`, `save.score` are set as FALSE")
+      }
+    }
+  }
   
   # Parameters settings and sanity checks:
   DEA.method <- match.arg(DEA.method)
@@ -400,7 +421,9 @@ SignatureCrossValidation <- function(data.train, y.label,
     stop(paste0("GetSignatureList: signature.selection.method input not recognized: Possible values are :", paste(SIGNATURE.SELECTION.METHODS, collapse = ", ")))
   }
   
+  # ----------------------------------------------------------------------------
   # Part 1: Differential Gene expression Analysis
+  # ----------------------------------------------------------------------------
   message("Run Differential Gene expression Analysis")
   
   if (is.null(DEA.data)){
@@ -416,14 +439,14 @@ SignatureCrossValidation <- function(data.train, y.label,
     method = DEA.method, 
     col.aggregate = col.aggregate)
   
-  message("Finish")
-  
-  if (!is.null(folds.save.folder)){
+  if (save.model){
     saveRDS(dea.res, file = paste0(folds.save.folder, "dea.res.rds"))
   }
   
-  # Part 2: Create signature
-  message("Get Signatures")
+  # ----------------------------------------------------------------------------
+  # Part 2: Create signature + Get Scores
+  # ----------------------------------------------------------------------------
+  message("Get Signatures + Scores")
   
   signature.list <- GetSignatureList(
     df = dea.res,
@@ -436,14 +459,12 @@ SignatureCrossValidation <- function(data.train, y.label,
     sides = signature.sides,
     remove_regex = signature.rm.regex)
   
-  # Part 3: Compute signature score
-  message("Compute Signature Scores")
-  
   # Create empty data-frames containers
   signature.score.train <- data.frame(row.names = colnames(data.train@assays[["RNA"]]@counts))
   if(!is.null(data.test)){
     signature.score.test <- data.frame(row.names = colnames(data.test@assays[["RNA"]]@counts))
   }
+  scale.params.df <- data.frame()
   
   # pre-compute ranks
   ranks.matrices.train <- list()
@@ -475,6 +496,8 @@ SignatureCrossValidation <- function(data.train, y.label,
     rm(X.test)
   }
   
+  
+  
   for (ss.method in c(signature.methods)){ # ss.method <- c(signature.methods)[1]
     # Get the training signature score
     signature.score.tmp <- GetSignatureScore(
@@ -482,7 +505,15 @@ SignatureCrossValidation <- function(data.train, y.label,
       assay = assay, slot = slot,
       ranks = ranks.matrices.train[[ss.method]],
       signature = signature.list, 
-      method = ss.method)
+      method = ss.method, 
+      to.scale = T, 
+      scale.params = NULL)
+    
+    scale.params.train <- list(
+      "mean" = signature.score.tmp$scale.mean,
+      "sd" = signature.score.tmp$scale.sd)
+    
+    signature.score.tmp <- signature.score.tmp$score
     colnames(signature.score.tmp) <- paste(ss.method, colnames(signature.score.tmp), sep = "_")
     signature.score.train <- cbind(signature.score.train, signature.score.tmp)
     
@@ -490,27 +521,48 @@ SignatureCrossValidation <- function(data.train, y.label,
     if(!is.null(data.test)){
       signature.score.tmp <- GetSignatureScore(
         object = data.test, 
-        assay = "RNA", slot = "counts",
+        assay = assay, slot = slot,
         ranks = ranks.matrices.test[[ss.method]],
         signature = signature.list,
-        method = ss.method)
+        method = ss.method, 
+        to.scale = T,
+        scale.params = scale.params.train)
+      signature.score.tmp <- signature.score.tmp$score
       colnames(signature.score.tmp) <- paste(ss.method, colnames(signature.score.tmp), sep = "_")
       signature.score.test <- cbind(signature.score.test, signature.score.tmp)
     }
+    
+    # Save the scale parameters:
+    if (is.null(scale.params.train$mean)){
+      scale.params.train$mean <- replicate(n = ncol(signature.score.tmp), expr = as.numeric(NA))
+    }
+    if (is.null(scale.params.train$sd)){
+      scale.params.train$sd <- replicate(n = ncol(signature.score.tmp), expr = as.numeric(NA))
+    }
+    scale.params.df.tmp <- data.frame(
+      hyperparams = colnames(signature.score.tmp),
+      mean = scale.params.train$mean,
+      sd = scale.params.train$sd)
+    
+    scale.params.df <- rbind(scale.params.df, scale.params.df.tmp)
+
   }
   
-  if (save.full.model){
-    if (!is.null(folds.save.folder)){
-      # DO not do this! Way to heavy!!!!
-      saveRDS(signature.score.train, file =  paste0(folds.save.folder, "signature.score.train.rds"))
-      if (!is.null(data.test)){
-        saveRDS(signature.score.test, file = paste0(folds.save.folder, "signature.score.test.rds"))
-      }
+  rownames(scale.params.df) <- scale.params.df$hyperparams
+  
+  # Save Score - WARNING VERY SPACE HEAVY
+  if (save.score){
+    saveRDS(signature.score.train, file =  paste0(folds.save.folder, "y_train_score.rds")) # signature.score.train.rds
+    saveRDS(scale.params.df, file =  paste0(folds.save.folder, "scale_params_df.rds"))
+    if (!is.null(data.test)){
+      saveRDS(signature.score.test, file = paste0(folds.save.folder, "y_test_score.rds")) # signature.score.test.rds
     }
   }
   
-  # Part 4: Compute accuracies: 
-  message("Compute Accuracies")
+  # ----------------------------------------------------------------------------
+  # Part 3: Compute performance: 
+  # ----------------------------------------------------------------------------
+  message("Compute Performance")
   
   # Get the output labels 
   y.train <- as.factor(data.train@meta.data[, y.label])
@@ -521,20 +573,23 @@ SignatureCrossValidation <- function(data.train, y.label,
   }
   
   res.inner <- data.frame()
-  if (!is.null(folds.save.folder)){
+  if (save.pred){
     y.train.pred.df <- data.frame(row.names = colnames(data.train))
     y.test.pred.df <- data.frame(row.names = colnames(data.test))
   }
+  
   for (hyper.col in colnames(signature.score.train)){ # hyper.col <- colnames(signature.score.train)[1]
-    
+    x.threshold <- NA
     if (!all(is.na(signature.score.train[,hyper.col]))){
+      
+      x.train <- signature.score.train[,hyper.col]
       if (!is.null(data.test)){
         x.test = signature.score.test[,hyper.col]
       } else {
         x.test = NULL
       }
-      pred.res <- BinarizeSignaturePrediction(
-        x.train = signature.score.train[,hyper.col], 
+      pred.res <- BinarizeScorePrediction(
+        x.train = x.train, 
         x.test = x.test,
         method = "greedy", 
         weights = sample.weights[rownames(signature.score.train), 1],
@@ -544,44 +599,38 @@ SignatureCrossValidation <- function(data.train, y.label,
       y.train.pred <- pred.res$y.train.pred
       y.test.pred <- pred.res$y.test.pred
       x.threshold <- pred.res$x.threshold
+
+      # Get training accuracy:
+      res.train.metrics <- GetAccuracyMetrics(ground_truth = y.train, preds = y.train.pred, scores = x.train, metrics = EVALUATION.METRICS)
       
-      if (!is.null(folds.save.folder)){
+      # Get testing accuracy
+      if (!is.null(data.test)){
+        res.test.metrics <- GetAccuracyMetrics(ground_truth = y.test, preds = y.test.pred, scores = x.test, metrics = EVALUATION.METRICS)
+      } else {
+        res.test.metrics <- replicate(n = (4 + length(EVALUATION.METRICS)), NA)
+        names(res.test.metrics) <- c("TP", "FP", "TN", "FN", EVALUATION.METRICS)
+      }
+      
+      if (save.pred){
         y.train.pred.df.tmp <- data.frame(y.train.pred, row.names = colnames(data.train))
         colnames(y.train.pred.df.tmp) <- hyper.col
         y.train.pred.df <- cbind(y.train.pred.df, y.train.pred.df.tmp)
-        # saveRDS(y.train.pred.df, file =  paste0(folds.save.folder, "y_train_pred_", hyper.col, ".rds"))
+        
         if (!is.null(data.test)){
           y.test.pred.df.tmp <- data.frame(y.test.pred, row.names = colnames(data.test))
           colnames(y.test.pred.df.tmp) <- hyper.col
           y.test.pred.df <- cbind(y.test.pred.df, y.test.pred.df.tmp)
-          # saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred_", hyper.col, ".rds"))
         }
       }
       
-      # Get training accuracy:
-      res.train.metrics <- GetMetricsBinary(ground_truth = y.train, preds = y.train.pred)
-      res.train.metrics.acc <- GetAccuracyMetrics(tp = res.train.metrics$TP, 
-                                                  fp = res.train.metrics$FP, 
-                                                  tn = res.train.metrics$TN, 
-                                                  fn = res.train.metrics$FN)
-      
-      # Get testing accuracy
-      if (!is.null(data.test)){
-        res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
-        res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
-                                                   fp = res.test.metrics$FP, 
-                                                   tn = res.test.metrics$TN, 
-                                                   fn = res.test.metrics$FN)
-      } else {
-        res.test.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
-        res.test.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
-      }
     } else {
-      res.train.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
-      res.train.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
-      res.test.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
-      res.test.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
+      res.train.metrics <- replicate(n = (4 + length(EVALUATION.METRICS)), NA)
+      names(res.train.metrics) <- c("TP", "FP", "TN", "FN", EVALUATION.METRICS)
+      res.test.metrics <- replicate(n = (4 + length(EVALUATION.METRICS)), NA)
+      names(res.test.metrics) <- c("TP", "FP", "TN", "FN", EVALUATION.METRICS)
     }
+    
+    
     
     # Save results in cv.df.outer.inner:
     # TODO split "_" replace by "::" maybe..
@@ -599,20 +648,20 @@ SignatureCrossValidation <- function(data.train, y.label,
       "signature.selection.method" = str.split.res[3],
       "signature.side" = str.split.res[4],
       "signature.lengths" = str.split.res[5],
-      "signature.x.threshold" = x.threshold
+      "signature.x.threshold" = x.threshold,
+      "scale.mean" = scale.params.df[hyper.col,]$mean,
+      "scale.sd" = scale.params.df[hyper.col,]$sd
     )
     names(res.train.metrics) <- paste0("train.", names(res.train.metrics))
-    names(res.train.metrics.acc) <- paste0("train.", names(res.train.metrics.acc))
-    
+
     names(res.test.metrics) <- paste0("test.", names(res.test.metrics))
-    names(res.test.metrics.acc) <- paste0("test.", names(res.test.metrics.acc))
-    
-    res.info <- c(res.info, res.train.metrics, res.train.metrics.acc, res.test.metrics, res.test.metrics.acc)
+
+    res.info <- c(res.info, res.train.metrics, res.test.metrics)
     
     res.inner <- rbind(res.inner, res.info)
   }
   
-  if (!is.null(folds.save.folder)){
+  if (save.pred){
     saveRDS(y.train.pred.df, file =  paste0(folds.save.folder, "y_train_pred.rds"))
     if (!is.null(data.test)){
       saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred.rds"))
@@ -620,110 +669,5 @@ SignatureCrossValidation <- function(data.train, y.label,
   }
   
   return(res.inner)
-  
-  # # TODO rm
-  # }
-  # return(list())
 }
-
-#' Get Signature Accuracy
-#' 
-#' Function that compute accuracy based on a threshold
-#' 
-#' @param x numerical predictions
-#' @param y logical ground truth
-#' @param th numerical threshold to apply on x to get logical predictions
-#' @param weights vector of numerical of length identical to x. 
-#' It represent the weights of the samples
-#' Default vector of ones 
-#' 
-#' @return accuracy for x for a threshold th with samples weighted by weights
-#' 
-#' @export
-GetSignatureAccuracy <- function(x, y, th, weights = replicate(n = length(x), expr = 1)){
-  pred <-  (x >= th) == y
-  sum.T <- sum(weights[pred])
-  sum.all <- sum(weights)
-  return(sum.T/sum.all)
-}
-
-
-#' Get BinarySignature Prediction
-#' 
-#' Function to get the prediction for some numerical score. In brief, a threshold 
-#' is applied on a score vector to get binary prediction which are returned by 
-#' the function
-#' The threshold can be provided by the user (method = "threshold") or the 
-#' threshold can be computed in a "greedy" manner by optimizing the accuracy. 
-#' So there are two methods: 
-#' - "threshold": unbiased method where `x.threshold` must be provided
-#' - "greedy": Optimal threshold is computed to optimize maxium accuracy. Here, 
-#' 'ground.truth' needs to be provided. 
-#' 
-#' @param x.train numerical vector; The training score vector
-#' @param method character; The threhsold computation method. Possible values 
-#' are "greedy" and "threshold".
-#' Default = "greedy"
-#' @param ground.truth logical vector; The logical ground truth needed for when method = "greedy"
-#' @param x.threshold numerical; The threshold input for when method = "threshold"
-#' @param x.test numerical vector; The testing score vector. If NULL, return no testing prediction
-#' Default = NULL
-#' @param weights numerical vector of length identical to x.train; The observation weights.
-#' Default = NULL i.e. 1 for each observation
-#' 
-#' @return list("y.train.pred" = ..., "y.test.pred" = ...)
-#' 
-#' @export
-BinarizeSignaturePrediction <- function(x.train, 
-                                   method = c("greedy", "threshold"), 
-                                   ground.truth = NULL,
-                                   x.threshold = NULL,
-                                   x.test = NULL, 
-                                   weights = NULL){
-  method <- match.arg(method)
-  
-  # sanity checks + control inputs
-  if (method == "threshold" & is.null(x.threshold)){
-    warning("BinarizeSignaturePrediction: Method is 'threshold' and x.threshold is not defined. Continue with x.threshold = 0")
-    x.threshold <- 0
-  } else if (method == "greedy" & is.null(ground.truth)){
-    if (is.null(x.threshold)){
-      x.threshold <- 0
-    }
-    method <- "threshold"
-    warning(paste0("BinarizeSignaturePrediction: Method is 'greedy' and ground.truth is not defined. Continue with method = 'threshold' and x.threshold = ", x.threshold))
-  }
-  
-  if (method == "greedy"){
-    range_ <- range(x.train, na.rm = T)
-    if ((range_[2]-range_[1]) > 0){
-      if (is.null(weights)){
-        weights <- replicate(n = length(x.train), expr = 1)
-      }
-      opt.res <- stats::optimize(
-        f = GetSignatureAccuracy, 
-        interval = range(x.train, na.rm = T), 
-        x = x.train, 
-        y = ground.truth, 
-        weights = weights,
-        maximum = T)
-      x.threshold <- opt.res$maximum
-    } else {
-      x.threshold <- 0
-    }
-    y.train.pred <- x.train >= x.threshold
-  } else if (method == "threshold"){
-    y.train.pred <- x.train >= x.threshold
-  }
-  
-  if (!is.null(x.test)){
-    y.test.pred <- x.test >= x.threshold
-  } else {
-    y.test.pred <- NULL
-  }
-  
-  return(list("y.train.pred" = y.train.pred, "y.test.pred" = y.test.pred, "x.threshold" = x.threshold))
-}
-
-
 

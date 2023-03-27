@@ -4,7 +4,7 @@ suppressMessages(library(glmnet))
 suppressMessages(library(glmnetUtils))
 suppressMessages(library(stats))
 
-EVALUATION.METRICS <- c("accuracy", "mcc", "F1", "kappa")
+EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
 
 DEFAULT.LR.HYPERPARAMS <- list("alpha" = 0, "lambda" = 0)
 
@@ -56,7 +56,22 @@ GetLRPrediction <- function(x, path.folder,
   }
   
   # 2. Get prediction
+
   colnames(x) <- gsub("[-]", "..", colnames(x))
+  mask.missing <- !(rownames(res.fit$beta) %in% colnames(x))
+  if (any(mask.missing)){
+    colnames.2.add <- rownames(res.fit$beta)[mask.missing]
+    
+    warning("GetLRPrediction: Missing features in `x` \n", paste(colnames.2.add, collapse = ", "))
+    
+    data.2.add <- matrix(nrow = nrow(x), ncol = length(colnames.2.add), data = 0)
+    data.2.add <- data.frame(data.2.add)
+    rownames(data.2.add) <- rownames(x)
+    colnames(data.2.add) <- colnames.2.add
+    
+    x <- cbind(x, data.2.add)
+  }
+
   y.prob  <- stats::predict(object = res.fit, newdata = x, type = "response")[,1]
   y.pred <- y.prob < prob.threshold
   
@@ -95,15 +110,36 @@ GetLRPrediction <- function(x, path.folder,
 #' 
 #' @export
 LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = NULL, 
-                              model.prob.threshold = 0.5, folds.save.folder = NULL, 
+                              model.prob.threshold = NULL, 
                               sample.weights = NULL,
-                              save.full.model = F){
+                              folds.save.folder = NULL, 
+                              save.model = F, save.pred = F, save.score = F){
+  
+  # Sanity check on the saving of data
+  if (is.null(folds.save.folder)){
+    if (any(c(save.model, save.pred, save.score))){
+      warning("folds.save.folder is NULL but one or more of `save.model`, `save.pred`, `save.score` is set as TRUE: Nothing will be saved")
+      save.model = F;save.pred = F;save.score = F
+    }
+  } else {
+    if (dir.exists(folds.save.folder)){
+      if (any(!c(save.model, save.pred, save.score))){
+        warning("folds.save.folder exists but nothing will be saved since `save.model`, `save.pred`, `save.score` are set as FALSE")
+      }
+    }
+  }
   
   # Sanity checks:
   for (name_ in names(DEFAULT.LR.HYPERPARAMS)){
     if (!(name_ %in% names(hyperparams))){
       hyperparams[[name_]] <- DEFAULT.LR.HYPERPARAMS[[name_]]
     }
+  }
+  
+  if (is.null(model.prob.threshold)){
+    binarize.method <- "greedy"
+  } else {
+    binarize.method <- "threshold"
   }
   
   y.columns <- gsub(" *~.*", "", design.str)
@@ -118,19 +154,30 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
   # Formula doesn't work with "-"
   # So we replace them with a double point ".." beacause it is easy to find and replace later on. 
   colnames(data.train) <- gsub("[-]", "..", colnames(data.train))
+  mask.start.num <- grepl(pattern = "^[0-9]", x = colnames(data.train))
+  if (any(mask.start.num)){colnames(data.train)[mask.start.num] <- paste0("..", colnames(data.train)[mask.start.num])}
   if (!is.null(data.test)){
     colnames(data.test) <- gsub("[-]", "..", colnames(data.test))
+    mask.start.num <- grepl(pattern = "^[0-9]", x = colnames(data.test))
+    if (any(mask.start.num)){colnames(data.test)[mask.start.num] <- paste0("..", colnames(data.test)[mask.start.num])}
   }
+  # rm the "-" in gene names and replace them by ".."
   design.str <- gsub("[-]", "..", design.str)
+  # add ".." in front of gene names strarting with a number
+  design.str <- gsub(pattern = " [+] ([0-9])", replacement = " + ..\\1", x = design.str)
   
   x.columns <- trimws(strsplit(gsub(".*~ *", "", design.str), "[+]")[[1]])
  
   # Create Empty containers
   res.inner <- data.frame()
-  if (!is.null(folds.save.folder)){
+  if (save.pred){
     y.train.pred.df <- data.frame(row.names = rownames(data.train))
     y.test.pred.df <- data.frame(row.names = rownames(data.test))
     beta.coef.df <- data.frame(row.names = x.columns)
+  }
+  if (save.score){
+    y.train.score.df <- data.frame(row.names = rownames(data.train))
+    y.test.score.df <- data.frame(row.names = rownames(data.test))
   }
   
   if (is.null(sample.weights)){
@@ -155,72 +202,92 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
           weights = weights,
           lambda = lambda)
         
-        if (!is.null(folds.save.folder)){
-          beta.coef.df.tmp <- data.frame(res.fit$beta)
-          colnames(beta.coef.df.tmp) <- hyperparams_key
-          beta.coef.df <- cbind(beta.coef.df, beta.coef.df.tmp)
-          
-          # DO NOT do this --> Way to space heavy!!! 
-          if (save.full.model){
-            # file name = "res_fit_"<alpha>"_"<lambda>".rds"
-            saveRDS(res.fit, file = paste0(folds.save.folder, "res_fit_", hyperparams_key, ".rds"))
-          }
-        }
-        
-        # Get training accuracies:
+        # Get training probabilities
+        # https://stackoverflow.com/questions/60682714/why-did-my-factor-levels-get-reversed-in-logistic-regression-mnist-data
         y.train.prob <- stats::predict(object = res.fit, newdata = data.train, type = "respons")[,1] # newx for simple glmnet
-        y.train.pred <- y.train.prob < model.prob.threshold # https://stackoverflow.com/questions/60682714/why-did-my-factor-levels-get-reversed-in-logistic-regression-mnist-data
+        y.train.prob <- 1 - y.train.prob
         
-        res.train.metrics <- GetMetricsBinary(ground_truth = y.train, preds = y.train.pred)
-        res.train.metrics.acc <- GetAccuracyMetrics(tp = res.train.metrics$TP, 
-                                                    fp = res.train.metrics$FP, 
-                                                    tn = res.train.metrics$TN, 
-                                                    fn = res.train.metrics$FN)
-        
-        if (!is.null(folds.save.folder)){
-          y.train.pred.df.tmp <- data.frame(y.train.pred, row.names = rownames(data.train))
-          colnames(y.train.pred.df.tmp) <- hyperparams_key
-          y.train.pred.df <- cbind(y.train.pred.df, y.train.pred.df.tmp)
-          # saveRDS(y.train.pred.df, file = paste0(folds.save.folder, "y_train_pred_", hyperparams_key, ".rds"))
+        # Get testting probabilities
+        if (!is.null(data.test)){
+          y.test.prob  <- stats::predict(object = res.fit, newdata = data.test, type = "response")[,1]
+          y.test.prob <- 1 - y.test.prob
+        } else {
+          y.test.prob <- NULL
         }
+        
+        # Get the binary prediction (greedy or threshold)
+        pred.res <- BinarizeScorePrediction(
+          x.train = y.train.prob, 
+          x.test = y.test.prob,
+          method = binarize.method, 
+          weights = NULL,
+          ground.truth = y.train, 
+          x.threshold = model.prob.threshold)
+        
+        # Get train & test predictions: 
+        y.train.pred <- pred.res$y.train.pred
+        y.test.pred <- pred.res$y.test.pred
+        x.threshold <- pred.res$x.threshold
+        
+        # Get training accuracy
+        res.train.metrics <- GetAccuracyMetrics(ground_truth = y.train, preds = y.train.pred, scores = y.train.prob, metrics = EVALUATION.METRICS)
         
         # Get testing accuracy
         if (!is.null(data.test)){
-          y.test.prob  <- stats::predict(object = res.fit, newdata = data.test, type = "response")[,1]
-          y.test.pred <- y.test.prob < model.prob.threshold
-          
-          if (!is.null(folds.save.folder)){
-            y.test.pred.df.tmp <- data.frame(y.test.pred, row.names = rownames(data.test))
-            colnames(y.test.pred.df.tmp) <- hyperparams_key
-            y.test.pred.df <- cbind(y.test.pred.df, y.test.pred.df.tmp)
-            # saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred_", hyperparams_key, ".rds"))
-          }
-          
-          res.test.metrics <- GetMetricsBinary(ground_truth = y.test, preds = y.test.pred)
-          res.test.metrics.acc <- GetAccuracyMetrics(tp = res.test.metrics$TP, 
-                                                     fp = res.test.metrics$FP, 
-                                                     tn = res.test.metrics$TN, 
-                                                     fn = res.test.metrics$FN)
+          res.test.metrics <- GetAccuracyMetrics(ground_truth = y.test, preds = y.test.pred, scores = y.test.prob, metrics = EVALUATION.METRICS)
         } else {
-          res.test.metrics <- list(TP = NA, FP = NA, TN = NA, FN = NA)
-          res.test.metrics.acc <- list("accuracy" = NA, "mcc" = NA, "F1" = NA, "kappa" = NA) 
+          res.test.metrics <- replicate(n = (4 + length(EVALUATION.METRICS)), NA)
+          names(res.test.metrics) <- c("TP", "FP", "TN", "FN", EVALUATION.METRICS)
         }
         
         # Save results in cv.df.outer.inner:
         res.info <- list(
           "lambda" = lambda, 
           "alpha" = alpha,
-          "model.prob.threshold" = model.prob.threshold)
+          "model.prob.threshold" = x.threshold)
         
         names(res.train.metrics) <- paste0("train.", names(res.train.metrics))
-        names(res.train.metrics.acc) <- paste0("train.", names(res.train.metrics.acc))
         
         names(res.test.metrics) <- paste0("test.", names(res.test.metrics))
-        names(res.test.metrics.acc) <- paste0("test.", names(res.test.metrics.acc))
         
-        res.info <- c(res.info, res.train.metrics, res.train.metrics.acc, res.test.metrics, res.test.metrics.acc)
+        res.info <- c(res.info, res.train.metrics, res.test.metrics)
         
         res.inner <- rbind(res.inner, res.info)
+        
+        
+        # Save Model - WARNING VERY SPACE HEAVY
+        if (save.model){
+          # file name = "res_fit_"<alpha>"_"<lambda>".rds"
+          saveRDS(res.fit, file = paste0(folds.save.folder, "res_fit_", hyperparams_key, ".rds"))
+        }
+        # Store Prediction - Less space heavy
+        if (save.pred){
+          y.train.pred.df.tmp <- data.frame(y.train.pred, row.names = rownames(data.train))
+          colnames(y.train.pred.df.tmp) <- hyperparams_key
+          y.train.pred.df <- cbind(y.train.pred.df, y.train.pred.df.tmp)
+          
+          if (!is.null(data.test)){
+            y.test.pred.df.tmp <- data.frame(y.test.pred, row.names = rownames(data.test))
+            colnames(y.test.pred.df.tmp) <- hyperparams_key
+            y.test.pred.df <- cbind(y.test.pred.df, y.test.pred.df.tmp)
+          }
+          
+          beta.coef.df.tmp <- data.frame(res.fit$beta)
+          colnames(beta.coef.df.tmp) <- hyperparams_key
+          beta.coef.df <- cbind(beta.coef.df, beta.coef.df.tmp)
+        }
+        # Store Scores - WARNING Space heavy
+        if (save.score){
+          y.train.score.df.tmp <- data.frame(y.train.prob, row.names = rownames(data.train))
+          colnames(y.train.score.df.tmp) <- hyperparams_key
+          y.train.score.df <- cbind(y.train.score.df, y.train.score.df.tmp)
+          
+          if (!is.null(data.test)){
+            y.test.score.df.tmp <- data.frame(y.test.prob, row.names = rownames(data.test))
+            colnames(y.test.score.df.tmp) <- hyperparams_key
+            y.test.score.df <- cbind(y.test.score.df, y.test.score.df.tmp)
+          }
+        }
       } 
     } 
   } else {
@@ -229,19 +296,16 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
         # Save results in cv.df.outer.inner:
         res.info <- list(
           "lambda" = lambda, 
-          "alpha" = alpha)
+          "alpha" = alpha,
+          "model.prob.threshold" = 0.5)
         
-        res.train.metrics <- replicate(n = 4, NA)
-        names(res.train.metrics) <- paste0("train.", c("TP", "TN", "FP", "FN"))
-        res.train.metrics.acc <- replicate(n = length(EVALUATION.METRICS), NA)
-        names(res.train.metrics.acc) <- paste0("train.", EVALUATION.METRICS)
+        res.train.metrics <- replicate(n = (4 + length(EVALUATION.METRICS)), NA)
+        names(res.train.metrics) <- paste0("train.", c("TP", "TN", "FP", "FN", EVALUATION.METRICS))
         
-        res.test.metrics <- replicate(n = 4, NA)
-        names(res.test.metrics) <- paste0("test.", c("TP", "TN", "FP", "FN"))
-        res.test.metrics.acc <- replicate(n = length(EVALUATION.METRICS), NA)
-        names(res.test.metrics.acc) <- paste0("test.", EVALUATION.METRICS)
+        res.test.metrics <- replicate(n = (4 + length(EVALUATION.METRICS)), NA)
+        names(res.test.metrics) <- paste0("test.", c("TP", "TN", "FP", "FN", EVALUATION.METRICS))
         
-        res.info <- c(res.info, res.train.metrics, res.train.metrics.acc, res.test.metrics, res.test.metrics.acc)
+        res.info <- c(res.info, res.train.metrics, res.test.metrics)
         
         res.inner <- rbind(res.inner, res.info)
       }
@@ -249,11 +313,23 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
   }
   
   if (!is.null(folds.save.folder)){
+    
+  }
+  
+  # Save Prediction - Less space heavy
+  if (save.pred){
     saveRDS(y.train.pred.df, file =  paste0(folds.save.folder, "y_train_pred.rds"))
     if (!is.null(data.test)){
       saveRDS(y.test.pred.df, file = paste0(folds.save.folder, "y_test_pred.rds"))
     }
     saveRDS(beta.coef.df, file = paste0(folds.save.folder, "LR_beta_coef.rds"))
+  }
+  # Save Scores - WARNING Space heavy
+  if (save.score){
+    saveRDS(y.train.score.df, file =  paste0(folds.save.folder, "y_train_score.rds"))
+    if (!is.null(data.test)){
+      saveRDS(y.test.score.df, file = paste0(folds.save.folder, "y_test_score.rds"))
+    }
   }
   
   return(res.inner)

@@ -45,7 +45,7 @@ getPseudoBulk <- function(data, colData, col.aggregate){
   colData.cols <- colData.cols[colData.cols != col.aggregate]
   
   colData.n.unique <- colData %>% 
-    group_by(.dots = col.aggregate) %>% 
+    group_by(across(all_of(col.aggregate))) %>% 
     summarise(across(.cols = colData.cols, .n_unique))
   colData.n.unique <- data.frame(colData.n.unique)
   
@@ -54,7 +54,7 @@ getPseudoBulk <- function(data, colData, col.aggregate){
   }
   
   colData.aggr <- colData %>% 
-    group_by(.dots = col.aggregate) %>% 
+    group_by(across(all_of(col.aggregate))) %>% 
     summarise(across(.cols = colData.cols, .unique_1st))
   colData.aggr <- data.frame(colData.aggr)
   rownames(colData.aggr) <- colData.aggr[[col.aggregate]]
@@ -219,6 +219,15 @@ Runlimma <- function(mca,
     }
   }
   
+  # Remove possible NA values
+  if (any(is.na(mca@meta.data[[col.DE_group]]))){
+    mca@meta.data$group.tmp_ <- mca@meta.data[, col.DE_group]
+    unique.values <- unique(mca@meta.data[, col.DE_group])
+    unique.values <- unique.values[!is.na(unique.values)]
+    mca <- subset(mca, subset = group.tmp_ %in% unique.values)
+    mca@meta.data$group.tmp_ <- NULL
+  }
+  
   if (class(mca[[col.DE_group]][, 1]) != "factor"){
     mca[[col.DE_group]] <- factor(mca[[col.DE_group]])
   }
@@ -350,8 +359,36 @@ RunedgeR <- function(mca,
     }
   }
   
+  # Remove possible NA values
+  if (any(is.na(mca@meta.data[[col.DE_group]]))){
+    mca@meta.data$group.tmp_ <- mca@meta.data[, col.DE_group]
+    unique.values <- unique(mca@meta.data[, col.DE_group])
+    unique.values <- unique.values[!is.na(unique.values)]
+    mca <- subset(mca, subset = group.tmp_ %in% unique.values)
+    mca@meta.data$group.tmp_ <- NULL
+  }
+  
   if (class(mca[[col.DE_group]][, 1]) != "factor"){
     mca[[col.DE_group]] <- factor(mca[[col.DE_group]])
+  }
+  
+  # Remove redundant covariates for obtaining full rank model matrix
+  col.2.rm <- c()
+  for (.col in unique(c(col.sample, col.covariate))){
+    first.level <- levels(mca@meta.data[[col.DE_group]])[1]
+    mask.pos <- mca@meta.data[[col.DE_group]] == first.level
+    
+    positive.val <- as.character(unique(mca@meta.data[mask.pos, ][[.col]]))
+    negative.val <- as.character(unique(mca@meta.data[!mask.pos, ][[.col]]))
+    if (length(intersect(positive.val, negative.val)) == 0){
+      col.2.rm <- c(col.2.rm, .col)
+    }
+  }
+  if (length(col.2.rm) > 0){
+    warning("The model matrix is not full rank, so the model cannot be fit as specified.", 
+            "So we remove the redundant col.covariate: ", paste(col.2.rm, collapse = ", "))
+    col.covariate <- col.covariate[!col.covariate %in% col.2.rm]
+    if (length(col.covariate) == 0){ col.covariate <- NULL}
   }
   
   # Define formula with colData columns
@@ -391,6 +428,12 @@ RunedgeR <- function(mca,
     expr.data <- expr.data + abs(min(expr.data, na.rm = T))
   }
   
+  # Drop Levels that are not used:
+  for (col.2.treat in c(col.DE_group, col.covariate)){
+    colData[[col.2.treat]] <- factor(colData[[col.2.treat]])
+    colData[[col.2.treat]] <- droplevels(colData[[col.2.treat]])
+  }
+
   dge <- edgeR::DGEList(counts = expr.data, group = colData[[col.sample]])
   
   dge <- edgeR::calcNormFactors(dge)
@@ -492,9 +535,37 @@ RunDESeq2 <- function(mca,
     }
   }
   
+  # Remove possible NA values
+  if (any(is.na(mca@meta.data[[col.DE_group]]))){
+    mca@meta.data$group.tmp_ <- mca@meta.data[, col.DE_group]
+    unique.values <- unique(mca@meta.data[, col.DE_group])
+    unique.values <- unique.values[!is.na(unique.values)]
+    mca <- subset(mca, subset = group.tmp_ %in% unique.values)
+    mca@meta.data$group.tmp_ <- NULL
+  }
+  
   
   if (class(mca[[col.DE_group]][, 1]) != "factor"){
     mca[[col.DE_group]] <- factor(mca[[col.DE_group]])
+  }
+  
+  # Remove redundant covariates for obtaining full rank model matrix
+  col.2.rm <- c()
+  for (.col in unique(c(col.sample, col.covariate))){
+    first.level <- levels(mca@meta.data[[col.DE_group]])[1]
+    mask.pos <- mca@meta.data[[col.DE_group]] == first.level
+    
+    positive.val <- as.character(unique(mca@meta.data[mask.pos, ][[.col]]))
+    negative.val <- as.character(unique(mca@meta.data[!mask.pos, ][[.col]]))
+    if (length(intersect(positive.val, negative.val)) == 0){
+      col.2.rm <- c(col.2.rm, .col)
+    }
+  }
+  if (length(col.2.rm) > 0){
+    warning("The model matrix is not full rank, so the model cannot be fit as specified.", 
+            "So we remove the redundant col.covariate: ", paste(col.2.rm, collapse = ", "))
+    col.covariate <- col.covariate[!col.covariate %in% col.2.rm]
+    if (length(col.covariate) == 0){ col.covariate <- NULL}
   }
   
   # Define design with colData columns 
@@ -532,6 +603,9 @@ RunDESeq2 <- function(mca,
   
   # round the expr.data:
   expr.data <- round(expr.data, digits = 0)
+  
+  # m1 <- model.matrix(object = gsub("+", "*", design), data = colData)
+  # all.zero <- apply(m1, 2, function(x) all(x==0))
   
   dds = DESeq2::DESeqDataSetFromMatrix(countData = expr.data,
                                colData = colData, 
@@ -645,7 +719,8 @@ RunSeurat <- function(mca,
     ident.2 = levels(mca@meta.data[[col.DE_group]])[2],
     min.pct = -Inf, 
     only.pos = F, 
-    logfc.threshold = -Inf)
+    logfc.threshold = -Inf, 
+    min.cells.group = 0)
   
   res.df <- data.frame(
     row.names = rownames(res),
