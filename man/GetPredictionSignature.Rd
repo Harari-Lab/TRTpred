@@ -9,7 +9,9 @@ GetPredictionSignature(
   path.folder,
   DEA.file.name = "dea.res.rds",
   hyperparameters = DEFAULT.SIGNATURE.HYPERPARAMS,
-  score.threshold = 0
+  score.threshold = 0,
+  score.to.scale = T,
+  score.scale.params = NULL
 )
 }
 \arguments{

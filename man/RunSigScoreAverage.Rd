@@ -4,17 +4,20 @@
 \alias{RunSigScoreAverage}
 \title{Run the average signature score}
 \usage{
-RunSigScoreAverage(X, signature, scale = F)
+RunSigScoreAverage(X, signature, to.scale = T, scale.params = NULL)
 }
 \arguments{
 \item{X}{matrix; The matrix. Columns = cells, rows = some features}
 
 \item{signature}{list: signature as defined in GetSignature()}
 
-\item{scale}{logical: Weather to scale signature score or not.}
+\item{to.scale}{logical: Weather to scale signature score or not.}
 }
 \value{
-data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+list with three elements: 
+score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+scale.mean: mean value to scale (if to.scale)
+scale.sd: sd value to scale (if to.scale)
 }
 \description{
 Function to run the average signature score

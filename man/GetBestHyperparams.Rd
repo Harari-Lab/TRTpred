@@ -13,7 +13,7 @@ GetBestHyperparams(
 )
 }
 \arguments{
-\item{CV.res}{data.frame; Nested-Cross-Validation results as returned by NestedCrossValidation()}
+\item{CV.res}{data.frame; Nested-Cross-Validation results as returned by .CrossValidationLoop() or .NestedCrossValidationLoop()}
 
 \item{method}{characters; The method of the origin model. possible values are
 "LR", "signature"}

@@ -4,7 +4,7 @@
 \alias{RunSigScoreUCell}
 \title{Run the UCell signature score}
 \usage{
-RunSigScoreUCell(X, signature, ranks = NULL, scale = F)
+RunSigScoreUCell(X, signature, ranks = NULL, to.scale = T, scale.params = NULL)
 }
 \arguments{
 \item{X}{matrix; The matrix. Columns = cells, rows = some features}
@@ -14,10 +14,13 @@ RunSigScoreUCell(X, signature, ranks = NULL, scale = F)
 \item{ranks}{rank-matrix as defined by UCell::StoreRankings_UCell(X). 
 If provided, the function does not compute the rankings from X}
 
-\item{scale}{logical: Weather to scale signature score or not.}
+\item{to.scale}{logical: Weather to scale signature score or not.}
 }
 \value{
-data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+list with three elements: 
+score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+scale.mean: mean value to scale (if to.scale)
+scale.sd: sd value to scale (if to.scale)
 }
 \description{
 Function to run the UCell signature score

@@ -22,7 +22,9 @@ SignatureCrossValidation(
   col.aggregate = NULL,
   sample.weights = NULL,
   folds.save.folder = NULL,
-  save.full.model = F
+  save.model = F,
+  save.pred = F,
+  save.score = F
 )
 }
 \arguments{

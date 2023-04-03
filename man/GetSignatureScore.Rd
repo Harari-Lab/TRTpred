@@ -11,7 +11,8 @@ GetSignatureScore(
   assay = "RNA",
   slot = "data",
   method = SIGNATURE.SCORE.METHODS,
-  scale = F
+  to.scale = T,
+  scale.params = NULL
 )
 }
 \arguments{
@@ -28,10 +29,13 @@ default = "data"}
 \item{method}{character: The signature score method. 
 possible methods are "average" (default), "UCell", "AUCell", "singscore"}
 
-\item{scale}{logical: Weather to scale signature score or not.}
+\item{to.scale}{logical: Weather to scale signature score or not.}
 }
 \value{
-data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+list with three elements: 
+score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+scale.mean: mean value to scale (if to.scale)
+scale.sd: sd value to scale (if to.scale)
 }
 \description{
 Function to get signature score from different methods
