@@ -14,7 +14,7 @@ DESEQ.METHODS <- c("DESeq2_Wald", "DESeq2_LRT")
 SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, LIMMA.METHODS, EDGER.METHODS)
 
-SIGNATURE.SCORE.METHODS <- c("average", "UCell", "AUCell", "singscore")
+SIGNATURE.SCORE.METHODS <- c("average", "UCell", "AUCell", "singscore", "scGSEA")
 
 SIGNATURE.SELECTION.METHODS <- c("logFC", "pval")
 
@@ -35,6 +35,8 @@ EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", 
 #' @param x Seurat; The Seurat input data
 #' @param path.folder character; Folder to retrieve the model information.
 #' @param DEA.file.name character; The DEA result file name
+#' @param signature.list list; The siganture list
+#' Default = NULL
 #' @param hyperparameters list; The signature hyperparmeters
 #' Elements of list are 
 #'   - "signature.lengths": Vector of signature lengths
@@ -49,37 +51,41 @@ EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", 
 #' @export
 GetPredictionSignature <- function(x, path.folder, 
                                    DEA.file.name = "dea.res.rds", 
+                                   signature.list = NULL,
                                    hyperparameters = DEFAULT.SIGNATURE.HYPERPARAMS, 
                                    score.threshold = 0,
                                    score.to.scale = T, 
                                    score.scale.params = NULL){
   
-  # 0. Check hyperparameters:
+  # 1. Check hyperparameters:
   for (name_ in names(DEFAULT.SIGNATURE.HYPERPARAMS)){
     if (!(name_ %in% names(hyperparameters))){
       hyperparameters[[name_]] <- DEFAULT.SIGNATURE.HYPERPARAMS[[name_]]
     }
   }
   
-  # 1. Get DEA data
-  DEA.path <- paste0(path.folder, DEA.file.name)
-  if (file.exists(DEA.path)){
-    dea.res <- readRDS(file = DEA.path)
-  } else {
-    stop("GetPredictionSignature: DEA file path does not exist. Please check : ", DEA.path)
-  }
-  
   # 2. Get signature
-  signature.list <- GetSignatureList(
-    df = dea.res,
-    pval_col = "padj", 
-    log2FC_col = "logFC", 
-    pval_limit = 0.05, 
-    log2FC_limits = c(0, 0), 
-    gene.selection.methods = hyperparameters$signature.selection.method,
-    lengths = hyperparameters$signature.lengths, 
-    sides = hyperparameters$signature.side,
-    remove_regex = hyperparameters$signature.rm.regex)
+  if (is.null(signature.list)){
+    # 2.1. Get DEA data
+    DEA.path <- paste0(path.folder, DEA.file.name)
+    if (file.exists(DEA.path)){
+      dea.res <- readRDS(file = DEA.path)
+    } else {
+      stop("GetPredictionSignature: DEA file path does not exist. Please check : ", DEA.path)
+    }
+    
+    # 2.2. Get signature
+    signature.list <- GetSignatureList(
+      df = dea.res,
+      pval_col = "padj", 
+      log2FC_col = "logFC", 
+      pval_limit = 0.05, 
+      log2FC_limits = c(0, 0), 
+      gene.selection.methods = hyperparameters$signature.selection.method,
+      lengths = hyperparameters$signature.lengths, 
+      sides = hyperparameters$signature.side,
+      remove_regex = hyperparameters$signature.rm.regex)
+  }
   
   # 3. Get signature score
   signature.score <- GetSignatureScore(

@@ -9,7 +9,9 @@ suppressMessages(require(singscore))
 
 suppressMessages(require(GSEABase))
 
-SIGNATURE.SCORE.METHODS <- c("average", "UCell", "AUCell", "singscore")
+suppressMessages(require(matrixStats))
+
+SIGNATURE.SCORE.METHODS <- c("average", "UCell", "AUCell", "singscore", "scGSEA")
 
 
 #' Get signature score
@@ -60,6 +62,9 @@ GetSignatureScore <- function(object, signature, ranks = NULL,
          },
          singscore = {
            res <- RunSigScoreSingscore(X = expr.data, signature = signature, ranks = ranks, to.scale = to.scale, scale.params = scale.params)
+         },
+         scGSEA = {
+           res <- RunSigScoreScGSEA(X = expr.data, signature = signature, ranks = ranks, to.scale = to.scale, scale.params = scale.params)
          })
   
   return(res)
@@ -477,8 +482,145 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, to.scale = T, scale
   }
   
   return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
-  
-  
-  return(res) 
 }
 
+
+#' Run the scGSEA signature score
+#' 
+#' Function to run the scGSEA signature score
+#' 
+#' @param X matrix; The matrix. Columns = cells, rows = some features
+#' @param ranks rank-matrix as defined by singscore::rankGenes(). 
+#' If provided, the function does not compute the rankings from X
+#' @param signature list: signature as defined in GetSignature()
+#' @param to.scale logical: Weather to scale signature score or not.
+#' 
+#' @return list with three elements: 
+#' score: data.frame; The signature score data.frame. Row = cells and columns = names(signature)
+#' scale.mean: mean value to scale (if to.scale)
+#' scale.sd: sd value to scale (if to.scale)
+#' 
+#' @export
+RunSigScoreScGSEA <- function(X, signature, ranks = NULL, to.scale = T, scale.params = NULL){
+  
+  if (is.null(ranks)){
+    ranks = matrixStats::colRanks(as.matrix(X), preserveShape = T, ties.method = 'average')
+  }
+  
+  signature.input <- list()
+  for (signature.key in names(signature)){
+    signature.key.new.up <-   paste(signature.key, "up",   sep="_")
+    signature.key.new.down <- paste(signature.key, "down", sep="_")
+    
+    if ("up" %in% names(signature[[signature.key]])){
+      signature.input[[signature.key.new.up]] <-   signature[[signature.key]]$up
+    }
+    if ("down" %in% names(signature[[signature.key]])){
+      signature.input[[signature.key.new.down]] <- signature[[signature.key]]$down
+    }
+  }
+  
+  for (siganture.key in names(signature.input)){
+    if (length(signature.input[[siganture.key]]) == 0){
+      signature.input[[siganture.key]] <- NULL
+    }
+  }
+  
+  res <- data.frame(row.names = colnames(X))
+  if (length(signature.input) > 0){
+    res <- run_scgsea(X = X, R = ranks, gene_sets = signature.input, scale = T, norm = T)
+    res <- data.frame(t(res), check.names = F)
+  } 
+  
+  for (signature.key in names(signature)){
+    signature.key.new.up <-   paste(signature.key, "up",   sep="_")
+    signature.key.new.down <- paste(signature.key, "down", sep="_")
+    
+    if (!signature.key.new.up %in% colnames(res)){
+      res[[signature.key.new.up]] <- 0
+    }
+    if (!signature.key.new.down %in% colnames(res)){
+      res[[signature.key.new.down]] <- 0
+    }
+    
+    res[[signature.key]] <- res[[signature.key.new.up]] - res[[signature.key.new.down]]
+  }
+  
+  res <- res[, names(signature), drop = F]
+  
+  if (to.scale){
+    center <- T
+    if ("mean" %in% names(scale.params)){
+      center <- scale.params[["mean"]]
+    }
+    scale <- T
+    if ("sd" %in% names(scale.params)){
+      scale <- scale.params[["sd"]]
+    }
+    res.scaled <-  scale(res, center = center, scale = scale)
+    res <- data.frame(res.scaled, check.names = F, check.rows = F)
+    scale.mean <- as.numeric(attr(res.scaled, "scaled:center"))
+    scale.sd <- as.numeric(attr(res.scaled, "scaled:scale"))
+  } else {
+    scale.mean <- as.numeric(NA)
+    scale.sd <- as.numeric(NA)
+  }
+  
+  return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
+}
+
+run_scgsea = function(X, gene_sets,  R = NULL, alpha = 0.25, scale = T, norm = F, single = T) {
+  
+  # Ranks for genes
+  if (is.null(R)){
+    R = matrixStats::colRanks(X, preserveShape = T, ties.method = 'average')
+  }
+  
+  
+  row_names = rownames(X)
+  num_genes = nrow(X)
+  gene_sets = lapply(gene_sets, function(genes) {which(row_names %in% genes)})
+  
+  
+  
+  # Calculate enrichment score (es) for each sample (column)
+  es = apply(R, 2, function(R_col) {
+    gene_ranks = order(R_col, decreasing = TRUE)
+    
+    # Calc es for each gene set
+    es_sample = sapply(gene_sets, function(gene_set_idx) {
+      # pos: match (within the gene set)
+      # neg: non-match (outside the gene set)
+      indicator_pos = gene_ranks %in% gene_set_idx
+      indicator_neg = !indicator_pos
+      
+      rank_alpha  = (R_col[gene_ranks] * indicator_pos) ^ alpha
+      
+      step_cdf_pos = cumsum(rank_alpha)    / sum(rank_alpha)
+      step_cdf_neg = cumsum(indicator_neg) / sum(indicator_neg)
+      
+      step_cdf_diff = step_cdf_pos - step_cdf_neg
+      
+      # Normalize by gene number
+      if (scale) step_cdf_diff = step_cdf_diff / num_genes
+      
+      # Use ssGSEA or not
+      if (single) {
+        sum(step_cdf_diff)
+      } else {
+        step_cdf_diff[which.max(abs(step_cdf_diff))]
+      }
+    })
+    unlist(es_sample)
+  })
+  
+  if (length(gene_sets) == 1) es = matrix(es, nrow = 1)
+  
+  # Normalize by absolute diff between max and min
+  if (norm) es = es / diff(range(es))
+  
+  # Prepare output
+  rownames(es) = names(gene_sets)
+  colnames(es) = colnames(X)
+  return(es)
+}

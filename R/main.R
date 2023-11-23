@@ -10,7 +10,7 @@ DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20),
                                       "signature.rm.regex" = "none",
                                       "signature.methods" = c("AUCell"),
                                       "signature.selection.method" = c("logFC"))
-DA.METHODS <- c("wilcox")
+
 P.ADJUST.METHODS <- c("fdr", "bonferroni", "holm", "hochberg", "hommel", "BH", "BY", "none")
 LIMMA.METHODS <- c("limma_voom", "limma_trend")
 EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
@@ -49,6 +49,8 @@ EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", 
 #' Default = "none" i.e. no transformation. 
 #' @param DEA.file.name character; The name of the DEA file 
 #' Default = "dea.res.rds"
+#' @param signature.list list; The siganture list
+#' Default = NULL
 #' @param signature.x.threshold numerical; The signature score threhsold
 #' Default = 0
 #' @param LR.model.file.name character; The name of the LR file. 
@@ -64,7 +66,7 @@ GetModelPrediction <- function(data.input, data.output, y.label,
                                path.folder, 
                                method, hyperparameters,
                                data.trans.method, 
-                               DEA.file.name = "dea.res.rds", signature.x.threshold = 0,
+                               DEA.file.name = "dea.res.rds", signature.list = NULL, signature.x.threshold = 0,
                                signature.score.scale = T, signature.score.scale.params = NULL,
                                LR.model.file.name = NULL, LR.prob.threhsold = NULL){
   
@@ -82,6 +84,7 @@ GetModelPrediction <- function(data.input, data.output, y.label,
       x = PrepareData.list$data.train, 
       path.folder = path.folder, 
       DEA.file.name = DEA.file.name, 
+      signature.list = signature.list,
       hyperparameters = hyperparameters, 
       score.threshold = signature.x.threshold, 
       score.to.scale = signature.score.scale, 
@@ -171,7 +174,7 @@ TrainModel <- function(x.train, y.train,
                        data.trans.method = c("none", FEATURE.TRANS.METHODS), 
                        pca.explained.var.threshold = NULL,
                        rm.corr.features = F,
-                       DA.method = c("none", DA.METHODS),
+                       DA.method = c("none", DEA.METHODS),
                        DA.p.adjust.method = P.ADJUST.METHODS,
                        DA.p.val.threshold = 0.05,
                        DA.event.per.variable = NULL,
@@ -212,9 +215,12 @@ TrainModel <- function(x.train, y.train,
     rm.corr.features = rm.corr.features,
     rm.corr.features.threhsold = 0.8,
     DA.method = DA.method,
-    DA.p.adjust.method = DA.p.adjust.method,
+    y.sample = y.sample, 
+    y.covariates = y.covariates, 
+    y.aggregate = signature.col.aggregate,
+    DA.event.per.variable = DA.event.per.variable, 
     DA.p.val.threshold = DA.p.val.threshold,
-    DA.event.per.variable = DA.event.per.variable)
+    DA.p.adjust.method = DA.p.adjust.method)
   
   
   if (method == "LR"){

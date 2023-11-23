@@ -4,8 +4,15 @@ suppressMessages(require(stats))
 suppressMessages(require(ropls))
 
 FEATURE.TRANS.METHODS <- c("pca", "opls")
-DA.METHODS <- c("wilcox")
-P.ADJUST.METHODS <- c("fdr", "bonferroni", "holm", "hochberg", "hommel", "BH", "BY", "none")
+# DA.METHODS <- c("wilcox")
+P.ADJUST.METHODS <- c("none", "fdr", "bonferroni", "holm", "hochberg", "hommel", "BH", "BY")
+
+
+LIMMA.METHODS <- c("limma_voom", "limma_trend")
+EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
+DESEQ.METHODS <- c("DESeq2_Wald", "DESeq2_LRT")
+SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
+DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, EDGER.METHODS, LIMMA.METHODS)
 
 #' Prepare data for machine learning
 #' 
@@ -66,13 +73,14 @@ PrepareData <- function(
     pca.explained.var.threshold = NULL,
     rm.corr.features = F, 
     rm.corr.features.threhsold = 0.8,
-    DA.method = c("none", DA.METHODS), 
+    DA.method = c("none", DEA.METHODS),
+    y.sample = NULL, 
+    y.covariates = NULL, 
+    y.aggregate = NULL, 
     DA.p.adjust.method = P.ADJUST.METHODS, 
     DA.p.val.threshold = 0.05, 
     DA.event.per.variable = NULL
     ){
-  
-  # TODO DEA.data implementation?  
   
   method <- match.arg(method)
   data.trans.method <- match.arg(data.trans.method)
@@ -91,7 +99,46 @@ PrepareData <- function(
     x.train <- data.transformed$x.train
     x.test <- data.transformed$x.test
     
+    if (!is.null(DEA.data)){
+      DEA.data <- NULL
+      warning(paste0("main:PrepareData() - data.trans.method = ", data.trans.method, " and DEA is not null. DEA data is set as NULL and will be y.train in the future steps"))
+    }
+    
     rm(data.transformed)
+  }
+  
+  # Discriminant analysis
+  if (DA.method != "none"){
+    
+    if (is.null(DEA.data)){
+      DEA.data <- x.train
+    }
+    
+    discr.res <- DiscrAnalysisBinary(
+      x = DEA.data,
+      y = y.train,
+      y.label = y.label,
+      y.sample = y.sample,
+      y.covariates = y.covariates,
+      y.aggregate = y.aggregate,
+      method = DA.method, 
+      p.adjust.method = DA.p.adjust.method,
+      p.val.threshold = DA.p.val.threshold,
+      event.per.variable = DA.event.per.variable
+    )
+    sig.features <- subset(discr.res, Significant)$genes
+    
+    if (length(sig.features) > 0){
+      x.train <- x.train[, sig.features, drop = F]
+      if (!is.null(x.test)){
+        x.test <- x.test[, sig.features, drop = F]
+      }
+      if (!is.null(DEA.data)){
+        DEA.data <- DEA.data[, sig.features, drop = F]
+      }
+    } else {
+      warning("Discriminant Analysis: No significant features were identified. We continue without Discriminant Analysis")
+    }
   }
   
   # Remove Mutually correlated features
@@ -107,32 +154,14 @@ PrepareData <- function(
       if (!is.null(x.test)){
         x.test <- x.test[, keep.features, drop = F]
       }
+      if (!is.null(DEA.data)){
+        DEA.data <- DEA.data[, keep.features, drop = F]
+      }
     } else {
       warning("Remove Mutually Correlated features: No mutuallly corr features were identified.")
     }
   }
   
-  # Discriminant analysis
-  if (DA.method != "none"){
-    discr.res <- DiscrAnalysisBinary(
-      x = x.train, 
-      y = y.train[, y.label], 
-      method = DA.method, 
-      p.adjust.method = DA.p.adjust.method, 
-      p.val.threshold = DA.p.val.threshold,
-      event.per.variable = DA.event.per.variable
-    )
-    sig.features <- rownames(subset(discr.res, Significant))
-    
-    if (length(sig.features) > 0){
-      x.train <- x.train[, sig.features, drop = F]
-      if (!is.null(x.test)){
-        x.test <- x.test[, sig.features, drop = F]
-      }
-    } else {
-      warning("Discriminant Analysis: No significant features were identified. We continue without Discriminant Analysis")
-    }
-  }
   
   if (method == "signature"){
     # Create Seurat object
@@ -288,7 +317,11 @@ FeatureTrans <- function(x.train, x.test = NULL,
 #'  - column names = "p_val" (numerical), "p_val_adj" (numerical) & "Significant" (logical)
 #' 
 #' @export
-DiscrAnalysisBinary <- function(x, y, method = DA.METHODS,
+DiscrAnalysisBinary <- function(x, y, y.label, 
+                                y.sample = NULL, 
+                                y.covariates = NULL, 
+                                y.aggregate = NULL,
+                                method = DEA.METHODS,
                                 p.adjust.method = P.ADJUST.METHODS,
                                 p.val.threshold = 0.05, 
                                 event.per.variable = NULL){
@@ -296,52 +329,86 @@ DiscrAnalysisBinary <- function(x, y, method = DA.METHODS,
   method <- match.arg(method) # default = wilcox
   p.adjust.method <- match.arg(p.adjust.method) #default = "fdr"
   
-  y <- as.factor(y)
-  classes <- levels(y)
+  # Create Seurat object
+  x <- Seurat::CreateSeuratObject(counts = t(x), assay = "RNA", project = "NCV", meta.data = y)
   
-  x <- x[, colSums(x) > 0]
+  # Run DEA
+  dea.res <- RunDEA(
+    object = x, 
+    col.DE_group = y.label, 
+    col.sample = y.sample, 
+    col.covariate = y.covariates, 
+    assay = "RNA", slot = "data", 
+    method = method, 
+    col.aggregate = y.aggregate)
   
-  if (method == "wilcox"){
-    # separate the x between the two classes
-    x.T <- x[y == classes[1], ]
-    x.F <- x[y == classes[2], ]
-    
-    # Get the raw p-values
-    test.res <- sapply(X = colnames(x), function(col){
-      WRS.res <- stats::wilcox.test(x = x.T[, col], y = x.F[, col], 
-                                    alternative = "two.sided", 
-                                    correct = F, exact = F, paired = F)
-      # list("PC" = x, "statistic" = WRS.res$statistic, "p.value" = WRS.res$p.value)
-      WRS.res$p.value
-    })
-    
-    test.res <- data.frame(test.res)
-    colnames(test.res) <- c("p_val")
-    
-    # correct the p-value  
-    if (p.adjust.method != "none"){
-      test.res$p_val_adj <- stats::p.adjust(p = test.res$p_val, method = p.adjust.method)
-    } else {
-      test.res$p_val_adj <- test.res$p_val
-    }
-    
-    if (!is.null(event.per.variable)){
-      # Get the number of features
-      num.feature <- ceiling(nrow(x)/event.per.variable)
-      # Identify features that pass the EPV threhsold
-      # here we sort the test.res from most to least significant and take the num.feature first feature
-      test.res <- test.res[order(test.res$p_val_adj), ]
-      test.res$EPV_selection <- F
-      test.res$EPV_selection[1:num.feature] <- T
-      # Get which are significant
-      test.res$Significant <- (test.res$p_val_adj <= p.val.threshold) & test.res$EPV_selection
-    } else {
-      # Get which are significant
-      test.res$Significant <- test.res$p_val_adj <= p.val.threshold
-    }
+  if (p.adjust.method != "none"){
+    dea.res$p_val_adj <- stats::p.adjust(p = dea.res$pval, method = p.adjust.method)
+  } else {
+    dea.res$p_val_adj <- dea.res$padj # The default is Bonferroni here
   }
   
-  return(test.res)
+  if (!is.null(event.per.variable)){
+    # Get the number of features
+    num.feature <- ceiling(nrow(x)/event.per.variable)
+    # Identify features that pass the EPV threhsold
+    # here we sort the test.res from most to least significant and take the num.feature first feature
+    dea.res <- dea.res[order(dea.res$p_val_adj), ]
+    dea.res$EPV_selection <- F
+    dea.res$EPV_selection[1:num.feature] <- T
+    # Get which are significant
+    dea.res$Significant <- (dea.res$p_val_adj <= p.val.threshold) & dea.res$EPV_selection
+  } else {
+    # Get which are significant
+    dea.res$Significant <- dea.res$p_val_adj <= p.val.threshold
+  }
+  
+  # y <- as.factor(y)
+  # classes <- levels(y)
+  # 
+  # x <- x[, colSums(x) > 0]
+  # 
+  # if (method == "wilcox"){
+  #   # separate the x between the two classes
+  #   x.T <- x[y == classes[1], ]
+  #   x.F <- x[y == classes[2], ]
+  #   
+  #   # Get the raw p-values
+  #   test.res <- sapply(X = colnames(x), function(col){
+  #     WRS.res <- stats::wilcox.test(x = x.T[, col], y = x.F[, col], 
+  #                                   alternative = "two.sided", 
+  #                                   correct = F, exact = F, paired = F)
+  #     # list("PC" = x, "statistic" = WRS.res$statistic, "p.value" = WRS.res$p.value)
+  #     WRS.res$p.value
+  #   })
+  #   
+  #   test.res <- data.frame(test.res)
+  #   colnames(test.res) <- c("p_val")
+  #   
+  #   # correct the p-value  
+  #   if (p.adjust.method != "none"){
+  #     test.res$p_val_adj <- stats::p.adjust(p = test.res$p_val, method = p.adjust.method)
+  #   } else {
+  #     test.res$p_val_adj <- test.res$p_val
+  #   }
+  #   
+  #   if (!is.null(event.per.variable)){
+  #     # Get the number of features
+  #     num.feature <- ceiling(nrow(x)/event.per.variable)
+  #     # Identify features that pass the EPV threhsold
+  #     # here we sort the test.res from most to least significant and take the num.feature first feature
+  #     test.res <- test.res[order(test.res$p_val_adj), ]
+  #     test.res$EPV_selection <- F
+  #     test.res$EPV_selection[1:num.feature] <- T
+  #     # Get which are significant
+  #     test.res$Significant <- (test.res$p_val_adj <= p.val.threshold) & test.res$EPV_selection
+  #   } else {
+  #     # Get which are significant
+  #     test.res$Significant <- test.res$p_val_adj <= p.val.threshold
+  #   }
+  # }
+  
+  return(dea.res)
 }
 
 #' Remove mutually correlated features

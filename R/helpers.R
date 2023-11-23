@@ -48,3 +48,4 @@ ProcessConfigFile <- function(file, config){
   
   return(list("config.file" = config.file, "str.out" = paste(str.out, collapse = "")))
 }
+
