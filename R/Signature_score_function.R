@@ -104,7 +104,7 @@ RunSigScoreAverage <- function(X, signature, to.scale = T, scale.params = NULL){
     if (!is.null(s_up)){
       s_up <- s_up[!is.na(s_up)]
       if (length(s_up) > 1){
-        up_ss <- colSums(X[s_up, ])/length(s_up)
+        up_ss <- colSums(as.matrix(X[s_up, ]))/length(s_up)
       } else {
         up_ss <- X[s_up, ]
         warning(paste0("RunSigScoreAverage: strange behaviour: s_up = ", paste(s_up, collapse = ", ")))
@@ -116,10 +116,10 @@ RunSigScoreAverage <- function(X, signature, to.scale = T, scale.params = NULL){
     if (!is.null(s_down)){
       s_down <- s_down[!is.na(s_down)]
       if (length(s_down) > 1){
-        down_ss <- colSums(X[s_down, ])/length(s_down)
+        down_ss <- colSums(as.matrix(X[s_down, ]))/length(s_down)
       } else {
         down_ss <- X[s_down, ]
-        warning(paste0("RunSigScoreAverage: strange behaviour: s_down = ", paste(s_up, collapse = ", ")))
+        warning(paste0("RunSigScoreAverage: strange behaviour: s_down = ", paste(s_down, collapse = ", ")))
       }
     } else {
       down_ss <- replicate(n = dim(X)[2], expr = 0)
@@ -490,7 +490,7 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, to.scale = T, scale
 #' Function to run the scGSEA signature score
 #' 
 #' @param X matrix; The matrix. Columns = cells, rows = some features
-#' @param ranks rank-matrix as defined by singscore::rankGenes(). 
+#' @param ranks rank-matrix as defined by matrixStats::colRanks.
 #' If provided, the function does not compute the rankings from X
 #' @param signature list: signature as defined in GetSignature()
 #' @param to.scale logical: Weather to scale signature score or not.
@@ -569,6 +569,19 @@ RunSigScoreScGSEA <- function(X, signature, ranks = NULL, to.scale = T, scale.pa
   return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
 }
 
+
+#' Run the scGSEA
+#' 
+#' Function to run the scGSEA
+#' 
+#' @param X matrix; The matrix. Columns = cells, rows = some features
+#' @param R rank-matrix as defined by matrixStats::colRanks
+#' If provided, the function does not compute the rankings from X
+#' @param gene_sets list of genes; the gene-sets
+#' 
+#' @return scGSEA results in data.frame format
+#' 
+#' @export
 run_scgsea = function(X, gene_sets,  R = NULL, alpha = 0.25, scale = T, norm = F, single = T) {
   
   # Ranks for genes

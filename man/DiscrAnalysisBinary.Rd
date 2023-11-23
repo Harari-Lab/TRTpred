@@ -7,7 +7,11 @@
 DiscrAnalysisBinary(
   x,
   y,
-  method = DA.METHODS,
+  y.label,
+  y.sample = NULL,
+  y.covariates = NULL,
+  y.aggregate = NULL,
+  method = DEA.METHODS,
   p.adjust.method = P.ADJUST.METHODS,
   p.val.threshold = 0.05,
   event.per.variable = NULL

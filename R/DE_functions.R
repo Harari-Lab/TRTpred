@@ -279,9 +279,6 @@ Runlimma <- function(mca,
     fit <- limma::lmFit(vm, design = design)
   }
   
-  # TODO: CHECK IF WE NEED duplicateCorrelation
-  # dupcor <- duplicateCorrelation(vm, design = design, block = colData$Patient)
-  
   contr <- limma::makeContrasts(yes - no, levels = colnames(coef(fit)))
   contr.fit <- limma::contrasts.fit(fit, contr)
   

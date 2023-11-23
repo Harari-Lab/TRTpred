@@ -16,9 +16,15 @@ GetBestHyperparams(
 \item{CV.res}{data.frame; Nested-Cross-Validation results as returned by .CrossValidationLoop() or .NestedCrossValidationLoop()}
 
 \item{method}{characters; The method of the origin model. possible values are
-"LR", "signature"}
+"LR" (default), "signature"}
+
+\item{CV.type}{characters; The name of the cross-validation type. Possible 
+values are "CV" (default) or "NCV"}
 
 \item{outer.col}{character; The name of the outer-fold column in outer.col}
+
+\item{selection.metric}{character; Selection metrics. Possible values are 
+"mcc" (default), "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV"}
 }
 \value{
 data.frame; Data frame summarizing the best hyper-parameters for each outerfold

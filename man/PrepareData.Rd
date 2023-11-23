@@ -16,7 +16,10 @@ PrepareData(
   pca.explained.var.threshold = NULL,
   rm.corr.features = F,
   rm.corr.features.threhsold = 0.8,
-  DA.method = c("none", DA.METHODS),
+  DA.method = c("none", DEA.METHODS),
+  y.sample = NULL,
+  y.covariates = NULL,
+  y.aggregate = NULL,
   DA.p.adjust.method = P.ADJUST.METHODS,
   DA.p.val.threshold = 0.05,
   DA.event.per.variable = NULL
@@ -60,6 +63,10 @@ Default = 0.8}
 Possible values are "wilcox"
 Default = "none" i.e. no discriminant analysis}
 
+\item{y.sample}{character; The column of `y` corresponding to the samples for when method = "signature"}
+
+\item{y.covariates}{character vector; The columns of `y` corresponding to the covariates}
+
 \item{DA.p.adjust.method}{character; The p-value adjust method for the 
 discriminant analysis. 
 Default = "fdr"}
@@ -70,10 +77,6 @@ Default = "fdr"}
 A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
 a way to select a fewer amount of variables for a fixed amount of samples. 
 Default = NULL (no selection on EPV)}
-
-\item{y.covariates}{character vector; The columns of `y` corresponding to the covariates}
-
-\item{y.sample}{character; The column of `y` corresponding to the samples for when method = "signature"}
 }
 \value{
 data.frame summarizing the Nested-cross-validation

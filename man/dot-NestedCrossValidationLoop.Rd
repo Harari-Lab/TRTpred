@@ -2,7 +2,7 @@
 % Please edit documentation in R/Cross_Validation.R
 \name{.NestedCrossValidationLoop}
 \alias{.NestedCrossValidationLoop}
-\title{Nested Cross Validataion}
+\title{Nested Cross Validation loop}
 \usage{
 .NestedCrossValidationLoop(
   x,
@@ -17,7 +17,7 @@
   data.trans.method = c("none", FEATURE.TRANS.METHODS),
   pca.explained.var.threshold = NULL,
   rm.corr.features = F,
-  DA.method = c("none", DA.METHODS),
+  DA.method = c("none", DEA.METHODS),
   DA.p.adjust.method = P.ADJUST.METHODS,
   DA.p.val.threshold = 0.05,
   DA.event.per.variable = NULL,

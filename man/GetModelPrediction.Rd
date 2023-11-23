@@ -13,6 +13,7 @@ GetModelPrediction(
   hyperparameters,
   data.trans.method,
   DEA.file.name = "dea.res.rds",
+  signature.list = NULL,
   signature.x.threshold = 0,
   signature.score.scale = T,
   signature.score.scale.params = NULL,
@@ -39,6 +40,9 @@ Default = "none" i.e. no transformation.}
 
 \item{DEA.file.name}{character; The name of the DEA file 
 Default = "dea.res.rds"}
+
+\item{signature.list}{list; The siganture list
+Default = NULL}
 
 \item{signature.x.threshold}{numerical; The signature score threhsold
 Default = 0}

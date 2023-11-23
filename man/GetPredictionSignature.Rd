@@ -8,6 +8,7 @@ GetPredictionSignature(
   x,
   path.folder,
   DEA.file.name = "dea.res.rds",
+  signature.list = NULL,
   hyperparameters = DEFAULT.SIGNATURE.HYPERPARAMS,
   score.threshold = 0,
   score.to.scale = T,
@@ -20,6 +21,9 @@ GetPredictionSignature(
 \item{path.folder}{character; Folder to retrieve the model information.}
 
 \item{DEA.file.name}{character; The DEA result file name}
+
+\item{signature.list}{list; The siganture list
+Default = NULL}
 
 \item{hyperparameters}{list; The signature hyperparmeters
 Elements of list are 

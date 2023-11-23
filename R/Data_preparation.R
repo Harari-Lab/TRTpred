@@ -459,7 +459,34 @@ RemoveMutuallyCorrFeatures <- function(x, y, threshold = 0.8){
 }
 
 
-
+#' Prepare training data from seurat object
+#' 
+#' @description 
+#' This function prepare training data from Seurat object
+#' 
+#' @param SeuratObject Seurat object; The Seurat object (required)
+#' @param label character; The y-label (i.e tumor reactivity) (required)
+#' @param label.order character; the order of the y-label to transform them into factor
+#' @param assay character; The Seurat assay (default = "RNA")
+#' @param slot character; The assay slot (default = "slot")
+#' @param DEA.assay character; The Seurat assay used for the Differential Expression Analysis 
+#' Default = NULL = same as assay
+#' @param DEA.slot character; The assay slot used for the Differential Expression Analysis 
+#' Default = NULL = same as slot
+#' @param DEA.pseudobulk.col character; The colname in Seurat used to construct pseudobluck for the pseudobulk DEA
+#' Default = NULL
+#' @param covariates characters; The covariates list
+#' Default = NULL
+#' @param sample.weights.col character; Which col should be used to normalize the performance
+#' Default = NULL = none!
+#' 
+#' @return list; 
+#' - "data.input" 
+#' - "data.output" 
+#' - "DEA.data" 
+#' - "sample.weights" 
+#' 
+#' @export
 PrepareTrainingDataFromSeurat <- function(SeuratObject, label, label.order = NULL,
                                           assay = "RNA", slot = "data", 
                                           DEA.assay = NULL, DEA.slot = "data", DEA.pseudobulk.col = NULL,

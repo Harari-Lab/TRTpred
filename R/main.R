@@ -20,7 +20,129 @@ DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, LIMMA.METHODS, EDGER.METHODS)
 FEATURE.TRANS.METHODS <- c("pca", "opls")
 EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
 
+#' Get Models perdiction
+#' 
+#' Home function to apply TRTpred
+#' 
+#' @param seurat.obj Seurat Object; RNA-sequing single-cell object (required)
+#' @param seurat.assay character; The name of the seurat assay. 
+#' Default = "RNA"
+#' @param seurat.slot character; The name of the seurat slot
+#' Default = "scale.data"
+#' @param covariate.cols list of character; covariates
+#' Default = NULL
+#' @param y.label character; The y-label name. 
+#' Default = NULL
+#' 
+#' @return data.frame; Cell-Wise TRT predictions 
+#' Rows = barcode names in x. Cols = "score" and "pred"
+#' 
+#' @export
+GetTRTpred <- function(
+    seurat.obj, seurat.assay = "RNA", seurat.slot = "scale.data",
+    covariate.cols = NULL, y.label = NULL){
+  
+  # Get input data: 
+  data.input <- Seurat::GetAssayData(object = seurat.obj,
+                                     assay = seurat.assay, 
+                                     slot = seurat.slot)
+  data.input <- data.frame(t(data.input), check.rows = F, check.names = F)
+  
+  # Get parameters: 
+    
+  data("best.model.hyperparameters", package = "TRTpred")
+  
+  method <- best.model.hyperparameters$method; 
+  
+  data.trans.method <- best.model.hyperparameters$data.trans.method
+  if(data.trans.method == "none"){
+    data.output <- NULL
+    y.label <- NULL
+  } else {
+    data.output <- seurat.obj@meta.data[, unique(c(y.label, covariate.cols))]
+  }
 
+  PrepareData.list <- PrepareData(
+    x.train = data.input, 
+    y.train = data.output, 
+    y.label = y.label, 
+    method = method,
+    data.trans.method = data.trans.method, 
+    rm.corr.features = F, 
+    DA.method = "none")
+  
+  if (method == "signature") {
+    
+    DEA.res <- best.model.hyperparameters$DEA
+    best.model.hyperparameters$DEA <- NULL
+    
+    signature.list <- GetSignatureList(
+      df = DEA.res,
+      pval_col = "padj", 
+      log2FC_col = "logFC", 
+      pval_limit = 0.05, 
+      log2FC_limits = c(0, 0), 
+      gene.selection.methods = best.model.hyperparameters$signature.selection.method,
+      lengths = best.model.hyperparameters$signature.lengths, 
+      sides = best.model.hyperparameters$signature.side,
+      remove_regex = best.model.hyperparameters$signature.rm.regex)
+    
+    prediction.res <- GetPredictionSignature(
+      x = PrepareData.list$data.train, 
+      path.folder = NULL, 
+      DEA.file.name = NULL, 
+      signature.list = signature.list,
+      hyperparameters = best.model.hyperparameters, 
+      score.threshold = best.model.hyperparameters$signature.x.threshold, 
+      score.to.scale = !is.null(best.model.hyperparameters$signature.score.scale.params), 
+      score.scale.params = best.model.hyperparameters$signature.score.scale.params)
+    
+  } else if (method == "LR") {
+    prediction.res <- GetLRPrediction(
+      x = PrepareData.list$data.train, 
+      path.folder = path.folder, 
+      model.file.name = LR.model.file.name, 
+      prob.threshold = LR.prob.threhsold,
+      hyperparameters = hyperparameters)
+  }
+  
+  return(prediction.res)
+}
+
+#' Get clone-wise prediction
+#' 
+#' Get clone wise prediction from cell-wise TRT predictions. 
+#' 
+#' @param pred.df data.frame; The prediction data-frame with 3 required columns: 
+#' - the score column (score.col)
+#' - the prediction column (pred.col)
+#' - The clone-id column (clone.col)
+#' @param score.col character; The numerical score column name in pred.df
+#' Default = "score"
+#' @param pred.col character; The boolean pred column name in pred.df
+#' Default = "pred"
+#' @param clone.col character; The character clone-id column in pred.df
+#' Default = "CloneId"
+#' 
+#' @return data.frame; Rows = clones id. Cols = "score.clone" and "pred.clone" and number of cells
+#' 
+#' @export
+GetClonePred <- function(pred.df, score.col = "score", pred.col = "pred", clone.col = "CloneId"){
+  
+  pred.df$score <- pred.df[[score.col]]
+  pred.df$pred <- pred.df[[pred.col]]
+  
+  pred.clone.df <- pred.df %>% 
+    group_by(.dots = clone.col) %>% summarise(
+      pred.clone = any(pred, na.rm = T),
+      score.clone = max(score, na.rm = T),
+      n.cells = n(), 
+      n.cells.TRT = sum(pred, na.rm = T)
+    ) %>%
+    as.data.frame()
+  
+  return(pred.clone.df)
+}
 
 #' Get Models perdiction
 #' 

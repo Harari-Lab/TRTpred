@@ -22,7 +22,7 @@ CreateCVFolds(
 Default = 5}
 
 \item{replicates}{numerical; The number of replicates. 
-At each replicate, the seed is increased by 1}
+At each replicate, the seed is increased by 1. Default = 1}
 
 \item{sampling.method}{character; The sampling method to balance the folds. 
 if "under", Undersampling is performed to balance the categories in every fold
