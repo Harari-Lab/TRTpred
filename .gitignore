@@ -40,3 +40,7 @@ vignettes/*.pdf
 
 # DS_store files 
 .DS_Store
+
+# specific files
+docs/TRTpred_Demo_01.Rmd
+README.html
