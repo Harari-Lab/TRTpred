@@ -1,0 +1,745 @@
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Default
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+default:
+  name: "default_settings"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "none"
+    p.val.threshold: 0.1
+    p.adjust.method: "fdr"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    DEA.method: NULL
+    prob.threshold: 0.5
+    hyperparameters:
+      signature.methods: NULL
+      signature.lengths: NULL
+      signature.side: NULL
+      signature.rm.regex: NULL
+      alpha: !expr seq(0, 1, 0.1)
+      lambda: !expr seq(0, 1, 0.1)
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# RNA raw
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+RNA_raw:
+  name: "RNA_raw_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "none"
+    p.val.threshold: NULL
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_wilcox_fdr:
+  name: "RNA_raw_DA_wilcox_fdr_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "wilcox"
+    p.val.threshold: 0.1
+    p.adjust.method: "fdr"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_wilcox_10EPV:
+  name: "RNA_raw_DA_wilcox_10EPV_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "wilcox"
+    p.val.threshold: 1
+    p.adjust.method: "none"
+    event.per.variable: 10
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# RNA pca
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+RNA_pca:
+  name: "RNA_pca_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: NULL
+    DEA.slot: NULL
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "pca"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+    p.val.threshold: NULL
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_pca_var_explained_01:
+  name: "RNA_pca_var_explained_01_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: NULL
+    DEA.slot: NULL
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "pca"
+    pca.explained.var.threshold: 0.0001
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+    p.val.threshold: NULL
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_pca_DA_wilcox_fdr:
+  name: "RNA_pca_DA_wilcox_fdr_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: NULL
+    DEA.slot: NULL
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "pca"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "wilcox"
+    p.val.threshold: 0.1
+    p.adjust.method: "fdr"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_pca_DA_wilcox_10EPV:
+  name: "RNA_pca_DA_wilcox_10EPV_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: NULL
+    DEA.slot: NULL
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "pca"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "wilcox"
+    p.val.threshold: 1
+    p.adjust.method: "none"
+    event.per.variable: 10
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# RNA with DEA
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+RNA_raw_DA_Seurat_wilcox:
+  name: "RNA_raw_DA_Seurat_wilcox_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "wilcox"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_Seurat_LR:
+  name: "RNA_raw_DA_Seurat_LR_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "LR"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_Seurat_negbinom:
+  name: "RNA_raw_DA_Seurat_negbinom_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "negbinom"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_limma_trend:
+  name: "RNA_raw_DA_limma_trend_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "limma_trend"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_limma_voom:
+  name: "RNA_raw_DA_limma_voom_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "limma_voom"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_edgeR_QFL:
+  name: "RNA_raw_DA_edgeR_QFL_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "edgeR_QFL"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_edgeR_LRT:
+  name: "RNA_raw_DA_edgeR_LRT_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "edgeR_LRT"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_DESeq2_Wald:
+  name: "RNA_raw_DA_DESeq2_Wald_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "DESeq2_Wald"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+
+RNA_raw_DA_DESeq2_LRT:
+  name: "RNA_raw_DA_DESeq2_LRT_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: NULL
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr TRUE
+  DA:
+    method: "DESeq2_LRT"
+    p.val.threshold: 0.05
+    p.adjust.method: "none"
+    event.per.variable: NULL
+  model:
+    method: "LR"
+    hyperparameters:
+      alpha: !expr seq(0, 1, 0.05)
+      lambda: !expr seq(0, 1, 0.05)
+    prob.threshold: 0.5
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16

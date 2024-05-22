@@ -1,0 +1,461 @@
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Default
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+default:
+  name: "default_settings"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: "Patient"
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    pca.explained.var.threshold: NULL
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+    p.val.threshold: 0.05
+    p.adjust.method: "fdr"
+  model:
+    method: "signature"
+    DEA.method: "wilcox"
+    hyperparameters:
+      signature.methods: !expr c("AUCell", "average")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+      alpha: NULL
+      lambda: NULL
+    prob.threshold: NULL
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# limma c("limma_voom", "limma_trend")
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+RNA_data_limma_trend:
+  name: "RNA_counts_limma_trend_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "limma_trend"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+RNA_data_limma_voom:
+  name: "RNA_counts_limma_voom_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "limma_voom"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# EdgeR c("edgeR_LRT", "edgeR_QFL")
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+RNA_data_edgeR_QFL:
+  name: "RNA_counts_edgeR_QFL_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "edgeR_QFL"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+RNA_data_edgeR_LRT:
+  name: "RNA_counts_edgeR_LRT_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "edgeR_LRT"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# DESeq2 c("DESeq2_Wald", "DESeq2_LRT")
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Information:
+# DESeq2 how I implemented it requires a lot of memore. So I run it with only 8 cores.
+
+
+RNA_data_DESeq2_Wald:
+  name: "RNA_counts_DESeq2_Wald_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "DESeq2_Wald"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+RNA_data_DESeq2_LRT:
+  name: "RNA_DESeq2_LRT_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: "TCR_patient"
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "DESeq2_LRT"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Seurat c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+RNA_data_Seurat_wilcox:
+  name: "RNA_counts_Seurat_wilcox_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "wilcox"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+RNA_data_Seurat_LR:
+  name: "RNA_counts_Seurat_LR_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "LR"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+RNA_data_Seurat_negbinom:
+  name: "RNA_counts_Seurat_negbinom_L1O_Patient_v01"
+  data:
+    path: "<path_to_data>"
+    assay: "RNA"
+    slot: "scale.data"
+    DEA.assay: "RNA"
+    DEA.slot: "data"
+    DEA.pseudobulk.col: NULL
+    label: "Tumor_Reactive_labels"
+    label.order: !expr c("yes", "no")
+    covariates: !expr c("Patient")
+    sample: "Patient"
+  output:
+    folder.save: "<path_to_folder.save>"
+    folds.save.folder: "<path_to_folder.save>"
+  feature.trans:
+    method: "none"
+    rm.mutually.corr.features: !expr FALSE
+  DA:
+    method: "none"
+  model:
+    method: "signature"
+    DEA.method: "negbinom"
+    hyperparameters:
+      signature.methods: !expr c("average", "UCell", "AUCell", "singscore")
+      signature.lengths: !expr seq(5, 500, 5)
+      signature.side: !expr c("up", "both")
+      signature.rm.regex: NULL
+      signature.selection.method: !expr c("logFC", "pval")
+  CV:
+    selection.metric: "mcc"
+    k.outer: NULL
+    k.inner: NULL
+    leave.1.out: "Patient"
+    sampling.method: "none"
+    replicates: 1
+  run:
+    loadComputedData: !expr FALSE
+    seed: 1234
+    nCores: 16
+# !expr parallel::detectCores()
+
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+

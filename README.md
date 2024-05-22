@@ -1,12 +1,21 @@
 # Framework for Tumor Reactive TCR Prediction
 
-R library for training, evaluating and applying Tumor Reactive TCR predecitors. 
+## Introduction
 
-<p align="center">
-  <img height="250" src="docs/figure_tumor_reactivity_TCR_pred.png">
-</p>
+R library providing the functions to train, evaluate, and apply tumor reactive T cell predictors referred as to TRTpred. All information about the predictors and evaluation framework can be found Pétremand R., *et al*. Nature Biotechnology (2024) DOI: [10.1038/s41587-024-02232-0](https://doi.org/10.1038/s41587-024-02232-0)
 
-### Package instalation 
+In short, TRTpred library is composed of functions to perform different tasks:  
+
+  1. Perform models selection using NCV
+  2. Train models using CV
+  3. Apply a model on a new data
+  4. Evaluate models
+
+Importantly, a demo is added to illustrate TRTpred applicability to new data. 
+
+## Instalation 
+
+### Github instalation
 
 You may install this library directly from this Git repository by running the following code within R or RStudio: 
 
@@ -17,21 +26,80 @@ if (!require("devtools", quietly = TRUE))
 devtools::install_github(repo = "https://github.com/doRemy/Tumor_Reactive_TCR_Prediction", auth_token = <inset your tolken>)
 ```
 
-Otherwise, you may open a terminal in the directory of the `TRTpred` folder and compile the library by using this command line `$ R CMD build TRTpred`. A file called "TRTpred_0.0.1.tar.gz" should have been created. Finally, you may install the package using this the R command line as follows: `$ R CMD INSTALL TRTpred_0.0.1.tar.gz`
+### Local instalation
 
+Otherwise, you may pull `TRTpred` and open a terminal in the directory of the `TRTpred` folder to compile the library by using this command line `$ R CMD build TRTpred`. A file called "TRTpred_0.0.1.tar.gz" should have been created. Finally, you may install the package using this the R command line as follows: `$ R CMD INSTALL TRTpred_0.0.1.tar.gz`
 
-### Dependencies
+## System Requirements
 
-TODO
+### Hardware requirements
 
-### Documentation
+A computer with 8-16GB of ram and a 2.5GHz CPU can runTRTpred in a couple of miinutes. The computation and time bottlenecks are attributed to the quantity of the data. The model selection with the nested cross-validation is highly time consuming, especially in the Leave-One-Patient-Out (LOPO) mode. To minimize this computation time, you may run this part using parallel programing (see _doParallel_ library).
+
+### Software requirements
+
+TRTpred is built on R. Users will need a version of R higher than 4.0.3 and a compatible R-studio. The required R libraries and version are described below. 
+
+| **Library**   | **Version** | **Source**   | **Installation line**                                                |
+| ------------- | ----------- | ------------ | -------------------------------------------------------------------- |
+| _AUCell_      | V 1.16.0    | BioConductor | BiocManager::install("AUCell")                                       |
+| _config_      | V 0.3.1     | CRAN         | install.packages("config")                                           |
+| _DESeq2_      | V 1.34.0    | BioConductor | BiocManager::install("DESeq2")                                       |
+| _doParallel_  | V 1.1.17    | CRAN         | install.packages("doParallel", repos="http://R-Forge.R-project.org") |
+| _dplyr_       | V 1.1.0     | CRAN         | install.packages("dplyr")                                            |
+| _edgeR_       | V 3.36.0    | BioConductor | BiocManager::install("edgeR")                                        |
+| _foreach_     | V 1.5.2     | CRAN         | install.packages("foreach")                                          |
+| _getopt_      | V 1.20.3    | CRAN         | install.packages("geopt")                                            |
+| _glmnet_      | V 4.1-6     | CRAN         | install.packages("glmnet")                                           |
+| _glmnetUtils_ | V 1.1.8     | CRAN         | install.packages("glmnet")                                           |
+| _GSEABase_    | V 1.56.0    | github       | devtools::install_github("hongooi73/glmnetUtils")                    |
+| _limma_       | V 3.50.3    | BioConductor | BiocManager::install("limma")                                        |
+| _matrixStats_ | V 0.63.0    | CRAN         | install.packages("matrixStats")                                      |
+| _readxl_      | V 1.4.2     | CRAN         | install.packages("readxl")                                           |
+| _ropls_       | V 1.26.4    | BioConductor | BiocManager::install("ropls")                                        |
+| _Seurat_      | V 4.3.0     | github       | remotes::install_version("Seurat", version = "4.0.3")                |
+| _singscore_   | V 1.14.0    | BioConductor | BiocManager::install("singscore")                                    |
+| _stats_       | V 4.1.2     | CRAN         | install.packages("stats")                                            |
+| _tidyr_       | V 1.3.0     | github       | devtools::install_github("hadley/tidyr")                             |
+| _tidyverse_   | V 2.0.0     | CRAN         | install.packages("tidyverse")                                        |
+| _UCell_       | V 1.3.1     | BioConductor | BiocManager::install("UCell")  
+
+To install these libraries you will need *remotes* (“install.packages('remotes')”), *devtools* (“install.packages('devtools')”) and *BiocManager* (“install.packages("BiocManager")”).
+
+A **docker container** containing the computation environment can be found in zenodo DOI: [10.5281/zenodo.11243664](https://doi.org/10.5281/zenodo.11243664)
+
+## Documentation
 
 See a description of the functions implemented [here](docs/functions.md)
 
-###  Tutorials
+## Tutorials
 
-A demonstration of TRTpred can be found here https://doremy.github.io/
+A demonstration of TRTpred can be found [here](https://html-preview.github.io/?url=https://github.com/doRemy/Tumor_Reactive_TCR_Prediction/blob/main/docs/TRTpred_Demo_01.html)
 
-### Citations
+## Scripts
 
-TODO
+The “script” folder contains the scripts (shell and R scripts) that have been used to run TRTpred.
+
+The “script” folder contains a sub-folder called “R_script” that is composed of three R-script: 
+
+  1. 01_Model_Selection_NCV.R: A script dedicated to the model selection through Leave-One-Patient-Out (LOPO) Nested Cross Validation (NCV). It works by using configuration files of the models (see below). 
+  2. 02_Model_Training.R: A script dedicated to the final model training (and optimization though Cross Validation (CV)). It works by using configuration files of the models (see below).
+  3. 03_Get_Prediction.R: A script dedicated to the final model application. It works by using configuration files of the models (see below).
+
+The “script” folder also contains 3 sub-folders, each dedicated for one task: 
+
+  1. Part_01_Model_Selection: Script that runs 01_Model_Selection_NCV.R R-script with the correct configs and data
+  2. Part_02_Final_Model_Training: Script that runs 02_Model_Training.R R-script with the correct configs and data
+  3. Part_03_Applying_Model: Script that runs 03_Get_Prediction.R R-script with the correct configs and data
+
+Every sub-folder has 3 sub-folders: 
+
+  1. Model_configs: A folder with the model’s configuration files (YML format)
+  2. Shell_script: Examples of the scripts that have been used compute these parts
+  3. Results: Results folder 
+
+## Citations
+
+- Pétremand, R. et al. Identification of clinically relevant T cell receptors for personalized T cell therapy using combinatorial algorithms. Nat Biotechnol (2024). [https://doi.org/10.1038/s41587-024-02232-0](https://doi.org/10.1038/s41587-024-02232-0)
+
+
