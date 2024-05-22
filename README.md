@@ -42,27 +42,27 @@ TRTpred is built on R. Users will need a version of R higher than 4.0.3 and a co
 
 | **Library**   | **Version** | **Source**   | **Installation line**                                                |
 | ------------- | ----------- | ------------ | -------------------------------------------------------------------- |
-| _AUCell_      | V 1.16.0    | BioConductor | BiocManager::install("AUCell")                                       |
-| _config_      | V 0.3.1     | CRAN         | install.packages("config")                                           |
-| _DESeq2_      | V 1.34.0    | BioConductor | BiocManager::install("DESeq2")                                       |
-| _doParallel_  | V 1.1.17    | CRAN         | install.packages("doParallel", repos="http://R-Forge.R-project.org") |
-| _dplyr_       | V 1.1.0     | CRAN         | install.packages("dplyr")                                            |
-| _edgeR_       | V 3.36.0    | BioConductor | BiocManager::install("edgeR")                                        |
-| _foreach_     | V 1.5.2     | CRAN         | install.packages("foreach")                                          |
-| _getopt_      | V 1.20.3    | CRAN         | install.packages("geopt")                                            |
-| _glmnet_      | V 4.1-6     | CRAN         | install.packages("glmnet")                                           |
-| _glmnetUtils_ | V 1.1.8     | CRAN         | install.packages("glmnet")                                           |
-| _GSEABase_    | V 1.56.0    | github       | devtools::install_github("hongooi73/glmnetUtils")                    |
-| _limma_       | V 3.50.3    | BioConductor | BiocManager::install("limma")                                        |
-| _matrixStats_ | V 0.63.0    | CRAN         | install.packages("matrixStats")                                      |
-| _readxl_      | V 1.4.2     | CRAN         | install.packages("readxl")                                           |
-| _ropls_       | V 1.26.4    | BioConductor | BiocManager::install("ropls")                                        |
-| _Seurat_      | V 4.3.0     | github       | remotes::install_version("Seurat", version = "4.0.3")                |
-| _singscore_   | V 1.14.0    | BioConductor | BiocManager::install("singscore")                                    |
-| _stats_       | V 4.1.2     | CRAN         | install.packages("stats")                                            |
-| _tidyr_       | V 1.3.0     | github       | devtools::install_github("hadley/tidyr")                             |
-| _tidyverse_   | V 2.0.0     | CRAN         | install.packages("tidyverse")                                        |
-| _UCell_       | V 1.3.1     | BioConductor | BiocManager::install("UCell")  
+| _AUCell_      | 1.16.0      | BioConductor | BiocManager::install("AUCell")                                       |
+| _config_      | 0.3.1       | CRAN         | install.packages("config")                                           |
+| _DESeq2_      | 1.34.0      | BioConductor | BiocManager::install("DESeq2")                                       |
+| _doParallel_  | 1.1.17      | CRAN         | install.packages("doParallel", repos="http://R-Forge.R-project.org") |
+| _dplyr_       | 1.1.0       | CRAN         | install.packages("dplyr")                                            |
+| _edgeR_       | 3.36.0      | BioConductor | BiocManager::install("edgeR")                                        |
+| _foreach_     | 1.5.2       | CRAN         | install.packages("foreach")                                          |
+| _getopt_      | 1.20.3      | CRAN         | install.packages("geopt")                                            |
+| _glmnet_      | 4.1-6       | CRAN         | install.packages("glmnet")                                           |
+| _glmnetUtils_ | 1.1.8       | CRAN         | install.packages("glmnet")                                           |
+| _GSEABase_    | 1.56.0      | github       | devtools::install_github("hongooi73/glmnetUtils")                    |
+| _limma_       | 3.50.3      | BioConductor | BiocManager::install("limma")                                        |
+| _matrixStats_ | 0.63.0      | CRAN         | install.packages("matrixStats")                                      |
+| _readxl_      | 1.4.2       | CRAN         | install.packages("readxl")                                           |
+| _ropls_       | 1.26.4      | BioConductor | BiocManager::install("ropls")                                        |
+| _Seurat_      | 4.3.0       | github       | remotes::install_version("Seurat", version = "4.0.3")                |
+| _singscore_   | 1.14.0      | BioConductor | BiocManager::install("singscore")                                    |
+| _stats_       | 4.1.2       | CRAN         | install.packages("stats")                                            |
+| _tidyr_       | 1.3.0       | github       | devtools::install_github("hadley/tidyr")                             |
+| _tidyverse_   | 2.0.0       | CRAN         | install.packages("tidyverse")                                        |
+| _UCell_       | 1.3.1       | BioConductor | BiocManager::install("UCell")  
 
 To install these libraries you will need *remotes* (“install.packages('remotes')”), *devtools* (“install.packages('devtools')”) and *BiocManager* (“install.packages("BiocManager")”).
 
