@@ -1,0 +1,96 @@
+---
+title: "TRTpred Demo 01"
+author: "Rémy Pétremand"
+date: '`r format(Sys.Date(), "%d %B, %Y")`'
+output: 
+  html_document:
+    toc: true
+    toc_float:
+        collapsed: true
+        smooth_scroll: false
+    theme: cosmo
+  fig_caption: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  tidy = FALSE, 
+  cache = FALSE, 
+  eval = TRUE,
+  message = FALSE, 
+  warning = FALSE)
+```
+
+# Getting Started
+
+```{r}
+library(TRTpred)  # TRTpred library (see installation instructions)
+library(Seurat)   # Seurat library for the single-cell RNA and TCR sequencing objects
+library(dplyr)    # dplyr library for data handeling
+```
+
+# Load the data
+
+We may load a Seurat object (`Seurat.Demo`) containing the single-cell (sc) RNA-sequencing data (UMI counts)
+
+```{r}
+data("Seurat.Demo", package = "TRTpred")
+```
+
+The TCR sequencing data has been incorporated into `Seurat.Demo`'s meta-data in the "CloneID" column. 
+
+```{r}
+reactable::reactable(Seurat.Demo@meta.data[1:10, 1:5], rownames = F)
+```
+
+# Apply TRTpred
+
+We can obtain the prediction from TRTpred directly by using the `GetTRTpred()` function. 
+
+```{r}
+# Get the cell-wise TRT prediction
+TRTpred.prediction <- GetTRTpred(seurat.obj = Seurat.Demo, seurat.assay = "RNA", seurat.slot = "scale.data")
+
+# Map the clone-id columns to the cell-wise predictions data.frame
+TRTpred.prediction$CloneId <- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$CloneId
+
+# Map the ground-truth column to the cell-wise predictions data.frame
+TRTpred.prediction$TumorReactiveLabels <- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$TumorReactiveLabels
+TRTpred.prediction$TumorReactiveGroundTruth <- TRTpred.prediction$TumorReactiveLabels == "TR"
+TRTpred.prediction$TumorReactiveGroundTruth[TRTpred.prediction$TumorReactiveLabels == "ND"] <- as.logical(NA)
+
+# show results: 
+reactable::reactable(TRTpred.prediction[1:5, ])
+```
+
+The results are the scaled scores (`score` column) and Boolean prediction (`pred` columns, TRUE is tumor reactive). To obtain clone-wise prediction 
+
+```{r}
+# Get the clone-wise TRT prediction
+TRTpred.prediction.clone <- GetClonePred(pred.df = TRTpred.prediction)
+
+# show results: 
+reactable::reactable(TRTpred.prediction.clone[1:5, ])
+```
+
+# Evaluation of the prediction
+
+You may obtain the evaluation metrics (accuracy, AUC, sensitivity, ...) using the function `GetAccuracyMetrics()`
+
+```{r}
+evaluation.res <- TRTpred::GetAccuracyMetrics(
+  ground_truth = TRTpred.prediction$TumorReactiveGroundTruth, 
+  preds = TRTpred.prediction$pred, 
+  scores = TRTpred.prediction$score,
+  metrics = c("auc", "accuracy", "sensitivity"))
+```
+
+The metrics are: 
+
+```{r}
+evaluation.res
+```
+
+
+
