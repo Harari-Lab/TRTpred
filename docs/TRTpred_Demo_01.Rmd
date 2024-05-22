@@ -30,18 +30,35 @@ library(Seurat)   # Seurat library for the single-cell RNA and TCR sequencing ob
 library(dplyr)    # dplyr library for data handeling
 ```
 
-# Load the data
+# Load demo data
 
-We may load a Seurat object (`Seurat.Demo`) containing the single-cell (sc) RNA-sequencing data (UMI counts)
+From the TRTpred library we may load the scRNA-seq count matrix (UMI counts) and the corresponding meta.data containing the clone ids and their respective tumor-reactive labels. 
 
 ```{r}
-data("Seurat.Demo", package = "TRTpred")
+# Load count matrix: "pt14.count.mat"
+data("DemoCountMat", package = "TRTpred")
+# Load metadata with scTCR-seq data and TRT labels:  pt14.metadata"
+data("DemoMetadata", package = "TRTpred")
+
+Seurat.Demo <- Seurat::CreateSeuratObject(counts = pt14.count.mat, meta.data = pt14.metadata)
 ```
 
-The TCR sequencing data has been incorporated into `Seurat.Demo`'s meta-data in the "CloneID" column. 
+In the metadata we may see that we have both the scTCR-seq data in the "CloneId" and the tumor-reactive labels in the "TumorReactiveGroundTruth" column. 
 
 ```{r}
-reactable::reactable(Seurat.Demo@meta.data[1:10, 1:5], rownames = F)
+reactable::reactable(Seurat.Demo@meta.data[1:5, c("orig.ident", "CloneId", "TumorReactiveGroundTruth")], rownames = F)
+```
+
+# Process data
+
+To be able to use TRTpred we need to normalize the data and scale it. For the sake of simplicity here we only apply a standard log normalisation and scaling. 
+
+```{r}
+# Log Normalize
+Seurat.Demo <- NormalizeData(Seurat.Demo, normalization.method = "LogNormalize", scale.factor = 1E4, verbose = F)
+
+# Scaling
+Seurat.Demo <- ScaleData(Seurat.Demo, features = rownames(Seurat.Demo), verbose = F)
 ```
 
 # Apply TRTpred
@@ -56,15 +73,13 @@ TRTpred.prediction <- GetTRTpred(seurat.obj = Seurat.Demo, seurat.assay = "RNA",
 TRTpred.prediction$CloneId <- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$CloneId
 
 # Map the ground-truth column to the cell-wise predictions data.frame
-TRTpred.prediction$TumorReactiveLabels <- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$TumorReactiveLabels
-TRTpred.prediction$TumorReactiveGroundTruth <- TRTpred.prediction$TumorReactiveLabels == "TR"
-TRTpred.prediction$TumorReactiveGroundTruth[TRTpred.prediction$TumorReactiveLabels == "ND"] <- as.logical(NA)
+TRTpred.prediction$TumorReactiveGroundTruth <- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$TumorReactiveGroundTruth
 
 # show results: 
 reactable::reactable(TRTpred.prediction[1:5, ])
 ```
 
-The results are the scaled scores (`score` column) and Boolean prediction (`pred` columns, TRUE is tumor reactive). To obtain clone-wise prediction 
+The results are the scaled scores (`score` column) and Boolean prediction (`pred` columns, TRUE is tumor reactive) per cells. To obtain clone-wise prediction 
 
 ```{r}
 # Get the clone-wise TRT prediction

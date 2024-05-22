@@ -17,18 +17,12 @@ if (!require("devtools", quietly = TRUE))
 devtools::install_github(repo = "https://github.com/doRemy/Tumor_Reactive_TCR_Prediction", auth_token = <inset your tolken>)
 ```
 
+Otherwise, you may open a terminal in the directory of the `TRTpred` folder and compile the library by using this command line `$ R CMD build TRTpred`. A file called "TRTpred_0.0.1.tar.gz" should have been created. Finally, you may install the package using this the R command line as follows: `$ R CMD INSTALL TRTpred_0.0.1.tar.gz`
+
+
 ### Dependencies
 
 TODO
-
-### Test the package
-
-```
-# Import the libraries
-library(Seurat)
-
-TODO
-```
 
 ### Documentation
 
@@ -36,7 +30,7 @@ See a description of the functions implemented [here](docs/functions.md)
 
 ###  Tutorials
 
-TODO
+A demonstration of TRTpred can be found here https://doremy.github.io/
 
 ### Citations
 

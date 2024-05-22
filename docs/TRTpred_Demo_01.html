@@ -3244,7 +3244,7 @@ border-radius: 0px;
 
 <h1 class="title toc-ignore">TRTpred Demo 01</h1>
 <h4 class="author">Rémy Pétremand</h4>
-<h4 class="date">13 novembre, 2023</h4>
+<h4 class="date">22 mai, 2024</h4>
 
 </div>
 
@@ -3255,16 +3255,34 @@ border-radius: 0px;
 library(Seurat)   # Seurat library for the single-cell RNA and TCR sequencing objects
 library(dplyr)    # dplyr library for data handeling</code></pre>
 </div>
-<div id="load-the-data" class="section level1">
-<h1>Load the data</h1>
-<p>We may load a Seurat object (<code>Seurat.Demo</code>) containing the
-single-cell (sc) RNA-sequencing data (UMI counts)</p>
-<pre class="r"><code>data(&quot;Seurat.Demo&quot;, package = &quot;TRTpred&quot;)</code></pre>
-<p>The TCR sequencing data has been incorporated into
-<code>Seurat.Demo</code>’s meta-data in the “CloneID” column.</p>
-<pre class="r"><code>reactable::reactable(Seurat.Demo@meta.data[1:10, 1:5], rownames = F)</code></pre>
-<div class="reactable html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-f0305b20b1fdbe512f53" style="width:auto;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-f0305b20b1fdbe512f53">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"Patient":["pt-demo","pt-demo","pt-demo","pt-demo","pt-demo","pt-demo","pt-demo","pt-demo","pt-demo","pt-demo"],"CloneId":["clone_7","clone_238","clone_239","clone_950","clone_808","clone_21","clone_690","clone_857","clone_931","clone_724"],"ClonePresence":[true,true,true,true,true,true,true,true,true,true],"TumorReactiveLabels":["TR","ND","ND","TR","ND","ND","ND","ND","ND","TR"],"TumorReactiveAgSpecLabels":["TR_Deorph","ND","ND","TR_Orph","ND","ND","ND","ND","ND","TR_Deorph"]},"columns":[{"id":"Patient","name":"Patient","type":"character"},{"id":"CloneId","name":"CloneId","type":"character"},{"id":"ClonePresence","name":"ClonePresence","type":"logical"},{"id":"TumorReactiveLabels","name":"TumorReactiveLabels","type":"character"},{"id":"TumorReactiveAgSpecLabels","name":"TumorReactiveAgSpecLabels","type":"character"}],"dataKey":"7034e5be9f4bdd597bd14c1dd5cdba5b"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<div id="load-demo-data" class="section level1">
+<h1>Load demo data</h1>
+<p>From the TRTpred library we may load the scRNA-seq count matrix (UMI
+counts) and the corresponding meta.data containing the clone ids and
+their respective tumor-reactive labels.</p>
+<pre class="r"><code># Load count matrix: &quot;pt14.count.mat&quot;
+data(&quot;DemoCountMat&quot;, package = &quot;TRTpred&quot;)
+# Load metadata with scTCR-seq data and TRT labels:  pt14.metadata&quot;
+data(&quot;DemoMetadata&quot;, package = &quot;TRTpred&quot;)
+
+Seurat.Demo &lt;- Seurat::CreateSeuratObject(counts = pt14.count.mat, meta.data = pt14.metadata)</code></pre>
+<p>In the metadata we may see that we have both the scTCR-seq data in
+the “CloneId” and the tumor-reactive labels in the
+“TumorReactiveGroundTruth” column.</p>
+<pre class="r"><code>reactable::reactable(Seurat.Demo@meta.data[1:5, c(&quot;orig.ident&quot;, &quot;CloneId&quot;, &quot;TumorReactiveGroundTruth&quot;)], rownames = F)</code></pre>
+<div class="reactable html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-0beec206d92d813c7b8f" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-0beec206d92d813c7b8f">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"orig.ident":["Pt.14","Pt.14","Pt.14","Pt.14","Pt.14"],"CloneId":["TRBV15_TRBJ1-5_CATSNPTENQPQHF_TRAV12-3_TRAJ21_CAMSAWGNFNKFYF_TRAV8-3__","TRBV9_TRBJ2-4_CASSTTPGNIQYF_TRAV34_TRAJ20_CGAALDYKLSF","TRBV5-4_TRBJ2-7_CASSLDRGDYEQYF_TRAV19_TRAJ29_CALSEAASGNTPLVF","TRBV6-6_TRBJ2-1_CAAQGLAGAGNEQFF_TRAV12-2_TRAJ49_CAVINGNQFYF","TRBV7-6_TRBJ2-1_CASSFIGSGYEQFF_TRAV19_TRAJ34_CALSEDRDTDKLIF"],"TumorReactiveGroundTruth":[true,true,true,true,false]},"columns":[{"id":"orig.ident","name":"orig.ident","type":"character"},{"id":"CloneId","name":"CloneId","type":"character"},{"id":"TumorReactiveGroundTruth","name":"TumorReactiveGroundTruth","type":"logical"}],"dataKey":"ca20ec101d84279cc55a04733a9069d7"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="process-data" class="section level1">
+<h1>Process data</h1>
+<p>To be able to use TRTpred we need to normalize the data and scale it.
+For the sake of simplicity here we only apply a standard log
+normalisation and scaling.</p>
+<pre class="r"><code># Log Normalize
+Seurat.Demo &lt;- NormalizeData(Seurat.Demo, normalization.method = &quot;LogNormalize&quot;, scale.factor = 1E4, verbose = F)
+
+# Scaling
+Seurat.Demo &lt;- ScaleData(Seurat.Demo, features = rownames(Seurat.Demo), verbose = F)</code></pre>
 </div>
 <div id="apply-trtpred" class="section level1">
 <h1>Apply TRTpred</h1>
@@ -3277,24 +3295,22 @@ TRTpred.prediction &lt;- GetTRTpred(seurat.obj = Seurat.Demo, seurat.assay = &qu
 TRTpred.prediction$CloneId &lt;- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$CloneId
 
 # Map the ground-truth column to the cell-wise predictions data.frame
-TRTpred.prediction$TumorReactiveLabels &lt;- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$TumorReactiveLabels
-TRTpred.prediction$TumorReactiveGroundTruth &lt;- TRTpred.prediction$TumorReactiveLabels == &quot;TR&quot;
-TRTpred.prediction$TumorReactiveGroundTruth[TRTpred.prediction$TumorReactiveLabels == &quot;ND&quot;] &lt;- as.logical(NA)
+TRTpred.prediction$TumorReactiveGroundTruth &lt;- Seurat.Demo@meta.data[rownames(TRTpred.prediction), ]$TumorReactiveGroundTruth
 
 # show results: 
 reactable::reactable(TRTpred.prediction[1:5, ])</code></pre>
-<div class="reactable html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-b14eeee4f9df0285f1a6" style="width:auto;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-b14eeee4f9df0285f1a6">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["p11_AAACCTGAGGGCTTGA-4","p11_AAACCTGAGTAGGTGC-4","p11_AAACCTGCACGGCGTT-4","p11_AAACCTGCATGCGCAC-4","p11_AAACCTGGTGACAAAT-4"],"score":[0.792666484402801,-1.10675776940355,-1.28297651297202,1.4346656730628,-1.45685199835427],"pred":[true,false,false,true,false],"CloneId":["clone_7","clone_238","clone_239","clone_950","clone_808"],"TumorReactiveLabels":["TR","ND","ND","TR","ND"],"TumorReactiveGroundTruth":[true,null,null,true,null]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"score","name":"score","type":"numeric"},{"id":"pred","name":"pred","type":"logical"},{"id":"CloneId","name":"CloneId","type":"character"},{"id":"TumorReactiveLabels","name":"TumorReactiveLabels","type":"character"},{"id":"TumorReactiveGroundTruth","name":"TumorReactiveGroundTruth","type":"logical"}],"dataKey":"3812755dd85d89023e8455401bd837e0"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<div class="reactable html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-ff8b6bcd164f76f1229f" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-ff8b6bcd164f76f1229f">{"x":{"tag":{"name":"Reactable","attribs":{"data":{".rownames":["Pt14_AAACCTGTCTTACCGC","Pt14_AAACGGGTCATAGCAC","Pt14_AAACGGGTCGGACAAG","Pt14_AAAGCAACATGCTGGC","Pt14_AAAGCAAGTGAGTATA"],"score":[1.22529944756762,0.560660637909932,0.986740638678533,-0.984505413730373,-2.41918534033357],"pred":[true,true,true,false,false],"CloneId":["TRBV15_TRBJ1-5_CATSNPTENQPQHF_TRAV12-3_TRAJ21_CAMSAWGNFNKFYF_TRAV8-3__","TRBV9_TRBJ2-4_CASSTTPGNIQYF_TRAV34_TRAJ20_CGAALDYKLSF","TRBV5-4_TRBJ2-7_CASSLDRGDYEQYF_TRAV19_TRAJ29_CALSEAASGNTPLVF","TRBV6-6_TRBJ2-1_CAAQGLAGAGNEQFF_TRAV12-2_TRAJ49_CAVINGNQFYF","TRBV7-6_TRBJ2-1_CASSFIGSGYEQFF_TRAV19_TRAJ34_CALSEDRDTDKLIF"],"TumorReactiveGroundTruth":[true,true,true,true,false]},"columns":[{"id":".rownames","name":"","type":"character","sortable":false,"filterable":false,"rowHeader":true},{"id":"score","name":"score","type":"numeric"},{"id":"pred","name":"pred","type":"logical"},{"id":"CloneId","name":"CloneId","type":"character"},{"id":"TumorReactiveGroundTruth","name":"TumorReactiveGroundTruth","type":"logical"}],"dataKey":"80057748ca8ed85388b38b0f2a2087f7"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
 <p>The results are the scaled scores (<code>score</code> column) and
-Boolean prediction (<code>pred</code> columns, TRUE is tumor reactive).
-To obtain clone-wise prediction</p>
+Boolean prediction (<code>pred</code> columns, TRUE is tumor reactive)
+per cells. To obtain clone-wise prediction</p>
 <pre class="r"><code># Get the clone-wise TRT prediction
 TRTpred.prediction.clone &lt;- GetClonePred(pred.df = TRTpred.prediction)
 
 # show results: 
 reactable::reactable(TRTpred.prediction.clone[1:5, ])</code></pre>
-<div class="reactable html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-5f5f5863f3dcc1c10066" style="width:auto;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-5f5f5863f3dcc1c10066">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"CloneId":["clone_1","clone_10","clone_100","clone_101","clone_102"],"pred.clone":[true,false,false,true,true],"score.clone":[0.882991285356918,-1.32978517262614,-0.59319814126003,1.31659854291049,0.354788920846729],"n.cells":[1,1,1,8,2],"n.cells.TRT":[1,0,0,8,1]},"columns":[{"id":"CloneId","name":"CloneId","type":"character"},{"id":"pred.clone","name":"pred.clone","type":"logical"},{"id":"score.clone","name":"score.clone","type":"numeric"},{"id":"n.cells","name":"n.cells","type":"numeric"},{"id":"n.cells.TRT","name":"n.cells.TRT","type":"numeric"}],"dataKey":"cde32d8d5fb608ab990455ef42c4687d"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
+<div class="reactable html-widget html-fill-item-overflow-hidden html-fill-item" id="htmlwidget-342457614ba19b77a3cd" style="width:auto;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-342457614ba19b77a3cd">{"x":{"tag":{"name":"Reactable","attribs":{"data":{"CloneId":["TRBV11-2_TRBJ1-1_CASSIHGTEAFF_NA","TRBV11-2_TRBJ1-1_CASSIHGTEAFF_TRAV29/DV5_TRAJ52_CSKRAGGTSYGKLTF_TRAV39_TRAJ43_CAVDLNNDMRF","TRBV11-2_TRBJ1-1_CASSIHGTEAFF_TRAV39_TRAJ43_CAVDLNNDMRF","TRBV12-4_TRBJ1-2_CASSLSQGDGYTF_TRAV3_TRAJ36_CAVRDIRRQTGANNLFF","TRBV14_TRBJ2-7_CQQPLGTSGPSYEQYF_TRBV7-6_TRBJ2-3_CASSFDPAGTDTQYF_TRAV4_TRAJ42_CLVNSSPRGSQGNLIF"],"pred.clone":[true,true,true,false,true],"score.clone":[1.53263298032184,-0.173963146387848,1.30308883602304,-1.29803857992611,0.799230720796176],"n.cells":[5,1,17,1,1],"n.cells.TRT":[4,1,16,0,1]},"columns":[{"id":"CloneId","name":"CloneId","type":"character"},{"id":"pred.clone","name":"pred.clone","type":"logical"},{"id":"score.clone","name":"score.clone","type":"numeric"},{"id":"n.cells","name":"n.cells","type":"numeric"},{"id":"n.cells.TRT","name":"n.cells.TRT","type":"numeric"}],"dataKey":"375958285c73df2d5bb6e8feb4019c93"},"children":[]},"class":"reactR_markup"},"evals":[],"jsHooks":[]}</script>
 </div>
 <div id="evaluation-of-the-prediction" class="section level1">
 <h1>Evaluation of the prediction</h1>
@@ -3308,25 +3324,25 @@ using the function <code>GetAccuracyMetrics()</code></p>
 <p>The metrics are:</p>
 <pre class="r"><code>evaluation.res</code></pre>
 <pre><code>## $TP
-## [1] 4097
+## [1] 350
 ## 
 ## $FP
-## [1] 176
+## [1] 16
 ## 
 ## $TN
-## [1] 269
+## [1] 51
 ## 
 ## $FN
-## [1] 388
+## [1] 72
 ## 
 ## $accuracy
-## [1] 0.8855984
+## [1] 0.8200409
 ## 
 ## $sensitivity
-## [1] 0.9134894
+## [1] 0.8293839
 ## 
 ## $auc
-## [1] 0.8493946</code></pre>
+## [1] 0.8895805</code></pre>
 </div>
 
 
