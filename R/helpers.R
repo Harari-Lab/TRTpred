@@ -1,7 +1,22 @@
-# helpers
+# Helper functions
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Helper functions. Here to process config files
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
 
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
 
 suppressMessages(require(config))
+
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Process Config files
 #' 
@@ -48,4 +63,3 @@ ProcessConfigFile <- function(file, config){
   
   return(list("config.file" = config.file, "str.out" = paste(str.out, collapse = "")))
 }
-

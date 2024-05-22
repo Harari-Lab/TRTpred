@@ -1,8 +1,22 @@
+# TRTpred main
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: main functions for training and testing TRTpred
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
+
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
+
 suppressMessages(require(Seurat))
 suppressMessages(require(foreach))
 suppressMessages(library(dplyr))
 suppressMessages(library(tidyr))
 suppressMessages(library(tidyverse))
+
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
 
 DEFAULT.LR.HYPERPARAMS <- list("alpha" = 0, "lambda" = 0)
 DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20), 
@@ -19,6 +33,10 @@ SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, LIMMA.METHODS, EDGER.METHODS)
 FEATURE.TRANS.METHODS <- c("pca", "opls")
 EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
+
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Get Models perdiction
 #' 
@@ -223,7 +241,6 @@ GetModelPrediction <- function(data.input, data.output, y.label,
   
   return(prediction.res)
 }
-
 
 #' Train Model function
 #' 

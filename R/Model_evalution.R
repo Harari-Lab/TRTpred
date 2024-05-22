@@ -1,9 +1,22 @@
-# Model evaluation functions
-# Rémy Pétremand
+# Model Evaluation
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Function to evaluate the performance of models
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
+
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
 
 EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
 
-
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Get Binary Accuracy
 #' 
@@ -23,7 +36,6 @@ EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", 
   sum.all <- sum(weights)
   return(sum.T/sum.all)
 }
-
 
 #' Get Binary Prediction
 #' 
@@ -109,9 +121,6 @@ BinarizeScorePrediction <- function(x.train,
   
   return(list("y.train.pred" = y.train.pred, "y.test.pred" = y.test.pred, "x.threshold" = x.threshold))
 }
-
-
-
 
 #' Get binary predictive metric
 #' 
@@ -242,7 +251,6 @@ GetAccuracyMetrics <- function(metrics = EVALUATION.METRICS,
   return(res)
 }
 
-
 #' Get mcc metric
 #' 
 #' Function to get the mcc metric.
@@ -285,7 +293,6 @@ GetMccBinary <- function(ground_truth = NULL, preds = NULL,
   
   return(res)
 }
-
 #' Get accuracy metric
 #' 
 #' Function to get the accuracy metric
@@ -321,7 +328,6 @@ GetAccurayBinary <- function(ground_truth = NULL, preds = NULL,
   return(res)
 }
 
-
 #' Get F1 metric
 #' 
 #' Function to get the F1 metric
@@ -356,7 +362,6 @@ GetF1Binary <- function(ground_truth = NULL, preds = NULL,
   
   return(res)
 }
-
 
 #' Get kappa metric
 #' 
@@ -418,7 +423,6 @@ GetAUC <- function(ground_truth, scores){
   
   return(res)
 }
-
 
 #' Get sensitivity metric
 #' 
@@ -489,5 +493,3 @@ GetSpecificityBinary <- function(ground_truth = NULL, preds = NULL,
   
   return(res)
 }
-
-

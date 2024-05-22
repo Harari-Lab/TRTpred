@@ -1,13 +1,28 @@
-# Logistic Regression
+# Logistic Regression functions
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Function to train and test logistic regression models
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
+
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
 
 suppressMessages(library(glmnet))
 suppressMessages(library(glmnetUtils))
 suppressMessages(library(stats))
 
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
+
 EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
 
 DEFAULT.LR.HYPERPARAMS <- list("alpha" = 0, "lambda" = 0)
 
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Get Prediction for the LR model
 #' 
@@ -80,8 +95,6 @@ GetLRPrediction <- function(x, path.folder,
   
   return(LR.pred)
 }
-
-
 
 #' Logitic Regression Cross validation function
 #' 

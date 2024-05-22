@@ -1,10 +1,22 @@
-# Cross validation
+# Cross validation functions
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Function to perform nested and simple cross validation for the signature scoring and LR models
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
+
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
 
 suppressMessages(require(Seurat))
 suppressMessages(require(foreach))
 suppressMessages(library(dplyr))
 suppressMessages(library(tidyr))
 suppressMessages(library(tidyverse))
+
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
 
 DEFAULT.LR.HYPERPARAMS <- list("alpha" = 0, "lambda" = 0)
 DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20), 
@@ -21,9 +33,9 @@ DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, LIMMA.METHODS, EDGER.METHODS)
 FEATURE.TRANS.METHODS <- c("pca", "opls")
 EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
 
-
-
-
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Create Cross-validation folds
 #' 
@@ -136,7 +148,6 @@ CreateCVFolds <- function(y, y.leave.1.out = NULL, k = 5, replicates = 1,
   
   return(fold.list)
 }
-
 
 #' Create Nested-Cross-validation folds
 #' 
@@ -254,7 +265,6 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
               "folds.outer.inner" = folds.outer.inner, 
               "size.df" = fold.size.df))
 }
-
 
 #' Nested Cross Validation loop
 #' 
@@ -703,7 +713,6 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
   return(CV.res)
 }
 
-
 #' Get the best hyper-parameters for Nested cross validation
 #' 
 #' Function to get the best hyper-parameters for the nested cross validation. 
@@ -781,7 +790,6 @@ GetBestHyperparams <- function(CV.res,
 
   return(hyperparams.best)
 }
-
 
 #' Nested Cross Validation
 #' 

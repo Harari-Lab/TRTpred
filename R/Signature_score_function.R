@@ -1,18 +1,29 @@
-# Script To compute signature score
-# Rémy Pétremand
+# Signature scoring functions
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Function to score the cells baed on signatures
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
+
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
 
 suppressMessages(require(Seurat))
-
 suppressMessages(require(AUCell))
 suppressMessages(require(UCell))
 suppressMessages(require(singscore))
-
 suppressMessages(require(GSEABase))
-
 suppressMessages(require(matrixStats))
+
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
 
 SIGNATURE.SCORE.METHODS <- c("average", "UCell", "AUCell", "singscore", "scGSEA")
 
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Get signature score
 #' 
@@ -69,7 +80,6 @@ GetSignatureScore <- function(object, signature, ranks = NULL,
   
   return(res)
 }
-
 
 #' Run the average signature score
 #' 
@@ -484,7 +494,6 @@ RunSigScoreSingscore <- function(X, signature, ranks = NULL, to.scale = T, scale
   return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
 }
 
-
 #' Run the scGSEA signature score
 #' 
 #' Function to run the scGSEA signature score
@@ -568,7 +577,6 @@ RunSigScoreScGSEA <- function(X, signature, ranks = NULL, to.scale = T, scale.pa
   
   return(list("score" = res, "scale.mean" = scale.mean, "scale.sd" = scale.sd))
 }
-
 
 #' Run the scGSEA
 #' 

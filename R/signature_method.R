@@ -1,5 +1,12 @@
 # Signature method
-# Rémy Pétremand
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Function to apply the signature scoring method
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
+
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
 
 suppressMessages(require(Seurat))
 suppressMessages(require(AUCell))
@@ -7,6 +14,9 @@ suppressMessages(require(UCell))
 suppressMessages(require(singscore))
 suppressMessages(require(stats))
 
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
 
 LIMMA.METHODS <- c("limma_voom", "limma_trend")
 EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
@@ -27,6 +37,10 @@ DEFAULT.SIGNATURE.HYPERPARAMS <- list("signature.lengths" = c(20),
                                       "signature.selection.method" = c("logFC"))
 
 EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV")
+
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Get signature prediction from a given model
 #' 
@@ -330,8 +344,6 @@ GetSignatureList <- function(df, lengths, sides, remove_regex = NULL,
   
   return(signature.list)
 }
-
-
 
 #' Signature Cross Validation
 #' 
@@ -639,7 +651,6 @@ SignatureCrossValidation <- function(data.train, y.label,
     
     
     # Save results in cv.df.outer.inner:
-    # TODO split "_" replace by "::" maybe..
     str.split.res <- strsplit(x =  hyper.col, split = "_")[[1]]
     if (length(str.split.res) > 5){
       warning("What have you done... str.split.res is more than 4 elements... please check")
@@ -676,4 +687,3 @@ SignatureCrossValidation <- function(data.train, y.label,
   
   return(res.inner)
 }
-

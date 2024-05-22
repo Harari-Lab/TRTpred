@@ -1,7 +1,10 @@
-# Script To run DEA using Seurat as input
-# Rémy Pétremand
-# references:
-# Those functions were inspired by the work of others: 
+# Differential Expression funtion
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Function to perform differential expression analysis
+# Reference: 
+# TRTpred: https://doi.org/10.1038/s41587-024-02232-0
+# The implementation of these function was inspired by the work of:
 # - Soneson, C., Robinson, M. 
 #   Bias, robustness and scalability in single-cell differential expression analysis. N
 #   at Methods 15, 255–261 (2018). DOI: https://doi.org/10.1038/nmeth.4612
@@ -11,21 +14,31 @@
 #   Nat Commun 12, 5692 (2021). DOI: https://doi.org/10.1038/s41467-021-25960-2
 #   Github: https://github.com/neurorestore/DE-analysis
 
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
+
 suppressMessages(require(Seurat))
 suppressMessages(require(limma))
 suppressMessages(require(edgeR))
 suppressMessages(require(DESeq2))
 
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
 
 LIMMA.METHODS <- c("limma_voom", "limma_trend")
 EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
 DESEQ.METHODS <- c("DESeq2_Wald", "DESeq2_LRT")
 SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 .n_unique <- function(x){length(unique(x))}
-.unique_1st <- function(x){unique(x)[1]}
 
+.unique_1st <- function(x){unique(x)[1]}
 
 #' get Pseudo Bulk
 #' 
@@ -79,7 +92,6 @@ getPseudoBulk <- function(data, colData, col.aggregate){
   return(list("data" = data.aggr, "colData" = colData.aggr))
   
 }
-
 
 #' Run Differential-Expression Analysis
 #' 
@@ -160,7 +172,6 @@ RunDEA <- function(object, col.DE_group,
   
   return(de.res)
 }
-
 
 #' Limma DE function implementation
 #' 
@@ -730,4 +741,3 @@ RunSeurat <- function(mca,
   
   return(res.df)
 }
-

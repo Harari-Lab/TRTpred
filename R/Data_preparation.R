@@ -1,18 +1,32 @@
-# Function to prepare data for machine learning models
+# Data Prepation functions
+# Author: Rémy Pétremand
+# Date: 07.05.2024
+# Description: Function to prepare data for machine learning models
+# Reference: https://doi.org/10.1038/s41587-024-02232-0
+
+# ------------------------------------------------------------------------------
+# Libraries
+# ------------------------------------------------------------------------------
 
 suppressMessages(require(stats))
 suppressMessages(require(ropls))
 
+# ------------------------------------------------------------------------------
+# Global Parameters
+# ------------------------------------------------------------------------------
+
 FEATURE.TRANS.METHODS <- c("pca", "opls")
 # DA.METHODS <- c("wilcox")
 P.ADJUST.METHODS <- c("none", "fdr", "bonferroni", "holm", "hochberg", "hommel", "BH", "BY")
-
-
 LIMMA.METHODS <- c("limma_voom", "limma_trend")
 EDGER.METHODS <- c("edgeR_LRT", "edgeR_QFL")
 DESEQ.METHODS <- c("DESeq2_Wald", "DESeq2_LRT")
 SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, EDGER.METHODS, LIMMA.METHODS)
+
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
 
 #' Prepare data for machine learning
 #' 
@@ -210,7 +224,6 @@ PrepareData <- function(
   
   return(return.list)
 }
-
 
 #' Feature space transformation function
 #' 
@@ -458,7 +471,6 @@ RemoveMutuallyCorrFeatures <- function(x, y, threshold = 0.8){
   return(corr.res)
 }
 
-
 #' Prepare training data from seurat object
 #' 
 #' @description 
@@ -599,5 +611,3 @@ PrepareTrainingDataFromSeurat <- function(SeuratObject, label, label.order = NUL
   
   return(list("data.input" = data.input, "data.output" = data.output, "DEA.data" = DEA.data, "sample.weights" = sample.weights))
 }
-
-
