@@ -1,8 +1,8 @@
-# Framework for Tumor Reactive TCR Prediction
+# TRTpred Library
 
 ## Introduction
 
-R library providing the functions to train, evaluate, and apply tumor reactive T cell predictors referred as to TRTpred. All information about the predictors and evaluation framework can be found Pétremand R., *et al*. Nature Biotechnology (2024) DOI: [10.1038/s41587-024-02232-0](https://doi.org/10.1038/s41587-024-02232-0)
+R library providing the functions to train, evaluate, and apply tumor reactive T cell predictors referred as to TRTpred. All information about the predictors and evaluation framework can be found at Pétremand R., *et al*. Nature Biotechnology (2024) DOI: [10.1038/s41587-024-02232-0](https://doi.org/10.1038/s41587-024-02232-0)
 
 In short, TRTpred library is composed of functions to perform different tasks:  
 
@@ -28,13 +28,13 @@ devtools::install_github(repo = "https://github.com/doRemy/Tumor_Reactive_TCR_Pr
 
 ### Local instalation
 
-Otherwise, you may pull `TRTpred` and open a terminal in the directory of the `TRTpred` folder to compile the library by using this command line `$ R CMD build TRTpred`. A file called "TRTpred_0.0.1.tar.gz" should have been created. Finally, you may install the package using this the R command line as follows: `$ R CMD INSTALL TRTpred_0.0.1.tar.gz`
+Otherwise, you may pull `TRTpred` and open a terminal in the directory of the `TRTpred` folder to compile the library by using this command line `R CMD build TRTpred`. A file called "TRTpred_0.0.1.tar.gz" should have been created. Finally, you may install the package using this the R command line as follows: `R CMD INSTALL TRTpred_0.0.1.tar.gz`
 
 ## System Requirements
 
 ### Hardware requirements
 
-A computer with 8-16GB of ram and a 2.5GHz CPU can runTRTpred in a couple of miinutes. The computation and time bottlenecks are attributed to the quantity of the data. The model selection with the nested cross-validation is highly time consuming, especially in the Leave-One-Patient-Out (LOPO) mode. To minimize this computation time, you may run this part using parallel programing (see _doParallel_ library).
+A computer with 8-16GB of ram and a 2.5GHz CPU can run TRTpred in a couple of minutes. The computation and time bottlenecks are attributed to the quantity of the data. Unfortunately, the model selection with the nested cross-validation is highly time consuming, particularly in the Leave-One-Patient-Out (LOPO) mode. To minimize this computation time, you may run this part using parallel programming (see *doParallel* library).
 
 ### Software requirements
 
