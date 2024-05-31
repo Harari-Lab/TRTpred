@@ -23,7 +23,7 @@ You may install this library directly from this Git repository by running the fo
 if (!require("devtools", quietly = TRUE))
     install.packages("devtools")
 
-devtools::install_github(repo = "https://github.com/doRemy/Tumor_Reactive_TCR_Prediction", auth_token = <inset your tolken>)
+devtools::install_github(repo = "https://github.com/...", auth_token = <inset your tolken>)
 ```
 
 ### Local instalation
