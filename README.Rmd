@@ -18,7 +18,6 @@ output:
 
 R library providing the functions to train, evaluate, and apply tumor reactive T cell predictors referred as to TRTpred. All information about the predictors and evaluation framework can be found at Pétremand R., *et al*. Nature Biotechnology (2024) [![DOI](https://img.shields.io/badge/DOI%3A-10.1038/s41587--024--02232--0-brightgreen)](https://doi.org/10.1038/s41587-024-02232-0)
 
-
 In short, TRTpred library is composed of functions to perform different tasks:  
 
   1. Perform models selection using NCV
@@ -166,6 +165,10 @@ Every sub-folder has 3 sub-folders:
   1. Model_configs: A folder with the model’s configuration files (YML format)
   2. Shell_script: Examples of the scripts that have been used compute these parts
   3. Results: Results folder 
+
+## Notes for users
+
+TRTpred was build on CD8+ tumor-infiltrating lymphocytes (TILs). The input of the package are the CD8+ TILs single-cell RNA-sequencing data. 
 
 ## Citations
 

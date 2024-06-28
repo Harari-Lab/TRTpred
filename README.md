@@ -213,6 +213,11 @@ Every sub-folder has 3 sub-folders:
     these parts
 3.  Results: Results folder
 
+## Notes for users
+
+TRTpred was build on CD8+ tumor-infiltrating lymphocytes (TILs). The
+input of the package are the CD8+ TILs single-cell RNA-sequencing data.
+
 ## Citations
 
 -   Pétremand, R. et al. Identification of clinically relevant T cell
