@@ -96,7 +96,7 @@ GetLRPrediction <- function(x, path.folder,
   return(LR.pred)
 }
 
-#' Logitic Regression Cross validation function
+#' Logistic Regression Cross validation function
 #' 
 #' The function to perform logistic regression within a cross-validation frame-work
 #' 
@@ -163,9 +163,8 @@ LRCrossValidation <- function(data.train, design.str, hyperparams, data.test = N
     y.test <- as.character(y.test) == levels(y.test)[1]
   }
   
-  
   # Formula doesn't work with "-"
-  # So we replace them with a double point ".." beacause it is easy to find and replace later on. 
+  # So we replace them with a double point ".." because it is easy to find and replace later on. 
   colnames(data.train) <- gsub("[-]", "..", colnames(data.train))
   mask.start.num <- grepl(pattern = "^[0-9]", x = colnames(data.train))
   if (any(mask.start.num)){colnames(data.train)[mask.start.num] <- paste0("..", colnames(data.train)[mask.start.num])}

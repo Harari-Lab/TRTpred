@@ -39,25 +39,22 @@ EVALUATION.METRICS <- c("mcc", "accuracy", "F1", "kappa", "auc", "sensitivity", 
 
 #' Create Cross-validation folds
 #' 
-#' Function to create cross validation folds
+#' Function to create cross-validation folds
 #' 
 #' @param y vector; the vector to create the CV folds from
-#' @param k numerical: The number of outer folds
-#' Default = 5
+#' @param k numerical: The number of outer folds (default = 5)
 #' @param y.leave.1.out vector; If not NULL, vector to create Leave-1-out category CV
-#' @param sampling.method character; The sampling method to balance the folds. 
-#' if "under", Undersampling is performed to balance the categories in every fold
-#' if "upper", Uppersampling is performed to balance the categories in every fold
-#' if "none", no balancing sampling is performed. 
-#' Default = "under"
-#' @param replicates numerical; The number of replicates. 
-#' At each replicate, the seed is increased by 1. Default = 1
-#' @param seed numerical: The seed Default = .Random.seed[1]
+#' @param sampling.method character; The sampling method to balance the folds:
+#'   - "under": Undersampling is performed to balance the categories in every fold (default)
+#'   - "upper": Oversampling is performed to balance the categories in every fold
+#'   - "none": No balancing sampling is performed
+#' @param replicates numerical; The number of replicates. At each replicate, the seed is increased by 1 (default = 1)
+#' @param seed numerical: The seed (default = .Random.seed[1])
 #' 
 #' @return list containing the index of each sample belonging to the training and testing set for every fold
-#' names of list = names of CV folds. values of list = list with two names 
-#' - train: Training sample indexes
-#' - test: Testing sample indexes
+#'   Names of the list correspond to the names of CV folds, and values of the list contain two names:
+#'   - "train": Training sample indexes
+#'   - "test": Testing sample indexes
 #' 
 #' @export
 CreateCVFolds <- function(y, y.leave.1.out = NULL, k = 5, replicates = 1,
@@ -151,26 +148,22 @@ CreateCVFolds <- function(y, y.leave.1.out = NULL, k = 5, replicates = 1,
 
 #' Create Nested-Cross-validation folds
 #' 
-#' Function to create Nested cross validation folds using the CreateCVFolds in this package.
-#' See ? CreateCVFolds() for more details
+#' Function to create nested cross-validation folds using the CreateCVFolds in this package.
+#' See ?CreateCVFolds() for more details.
 #' 
 #' @param y vector; the vector to create the CV folds from
-#' @param k.out numerical: The number of outer folds
-#' Default = 5
-#' @param k.in numerical: The number of inner folds
-#' Default = 5
+#' @param k.out numerical: The number of outer folds (default = 5)
+#' @param k.in numerical: The number of inner folds (default = 5)
 #' @param y.leave.1.out vector; If not NULL, vector to create Leave-1-out category CV
-#' @param sampling.method character; The sampling method to balance the folds. 
-#' if "under", Undersampling is performed to balance the categories in every fold
-#' if "upper", Uppersampling is performed to balance the categories in every fold
-#' if "none", no balancing sampling is performed. 
-#' Default = "under"
-#' @param replicates numerical; The number of replicates. 
-#' At each replicate, the seed is increased by 1
-#' @param seed numerical: The seed Default = .Random.seed[1]
+#' @param sampling.method character; The sampling method to balance the folds:
+#'   - "under": Undersampling is performed to balance the categories in every fold (default)
+#'   - "upper": Oversampling is performed to balance the categories in every fold
+#'   - "none": No balancing sampling is performed
+#' @param replicates numerical; The number of replicates. At each replicate, the seed is increased by 1
+#' @param seed numerical: The seed (default = .Random.seed[1])
 #' 
-#' @return list of list. first level = outer-folds, second level = inner folds. 
-#' The content of the inner-fold list is the same as in CreateCVFolds()
+#' @return list of lists. The first level corresponds to outer folds, and the second level contains inner folds.
+#' The content of the inner-fold list is the same as in CreateCVFolds().
 #' 
 #' @export
 CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
@@ -271,63 +264,56 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
 #' Home Nested Cross validation function
 #' 
 #' @param x data.frame or matrix; The input matrix corresponding to the feature 
-#' space only. additional covariates are found in `y`. Rows = samples, 
-#' Columns = features
+#' space only. Additional covariates are found in `y`. Rows = samples, Columns = features.
 #' @param y data.frame or matrix; The output matrix. 
-#' Columns = c(y.label, y.covariates, y.sample)
-#' @param folds.outer list; outer-folds definition list. See CreateCVFolds()
-#' @param folds.outer.inner list; outer/inner folds definition list. See CreateCVFolds()
-#' @param y.label character; The column of `y` corresponding to the binary output
-#' @param y.covariates character vector; The columns of `y` corresponding to the covariates
-#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature"
-#' @param method character; The prediction method. Possible values are: "LR": 
-#' Logistic regression or "signature" signature-score approach. 
+#' Columns = c(y.label, y.covariates, y.sample).
+#' @param folds.outer list; Outer-folds definition list. See CreateCVFolds().
+#' @param folds.outer.inner list; Outer/inner folds definition list. See CreateCVFolds().
+#' @param y.label character; The column of `y` corresponding to the binary output.
+#' @param y.covariates character vector; The columns of `y` corresponding to the covariates.
+#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature".
+#' @param method character; The prediction method. Possible values are: 
+#' "LR" (Logistic regression) or "signature" (signature-score approach). 
 #' @param hyperparams list: The hyper-parameter list. 
-#' if method = "LR": Elements of list are 
-#'   - "alpha" (L2-regularization): Vector of alpha values (0-1)
-#'   - "lambda" (L1-regularization): Vector of lambda values (0-1)
-#' if method = "signature": Elements of list are 
-#'   - "signature.lengths": Vector of signature lengths
-#'   - "signature.side": Vector of siganture sides ("up", "down" or "both")
-#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
-#'   - "signature.methods": Vector of signature score methods
-#' @param data.trans.method character: The data transforamtion method. 
-#' Possible values are "pca" 
-#' Default = "none" i.e. no transformation. 
-#' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
-#' to select PCs explaining more variance than the threhsold
-#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' If method = "LR": Elements of the list are 
+#'   - "alpha" (L2-regularization): Vector of alpha values (0-1).
+#'   - "lambda" (L1-regularization): Vector of lambda values (0-1).
+#' If method = "signature": Elements of the list are 
+#'   - "signature.lengths": Vector of signature lengths.
+#'   - "signature.side": Vector of signature sides ("up", "down", or "both").
+#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature).
+#'   - "signature.methods": Vector of signature score methods.
+#'   - "signature.selection.method": How to select genes from DEA res using the log-Fold-Change ("logFC") or p-values ("pval")
+#' @param data.trans.method character; The data transformation method. 
+#' Possible values are "pca". Default = "none" i.e., no transformation. 
+#' @param pca.explained.var.threshold numeric; If not NULL, apply this threshold 
+#' to select PCs explaining more variance than the threshold.
+#' @param rm.corr.features logical; Do we remove the mutually correlated features 
 #' while keeping the ones that best correlate with the outcome? 
-#' default = F
+#' Default = FALSE.
 #' @param DA.method character; The discriminant analysis (DA) method. 
-#' Possible values are "wilcox"
-#' Default = "none" i.e. no discriminant analysis
-#' @param DA.p.adjust.method character; The p-value adjust method for the 
-#' discriminant analysis. 
-#' Default = "fdr"
-#' @param DA.event.per.variable, numerical; The number of event per variable threshold
-#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-#' a way to select a fewer amount of variables for a fixed amount of samples. 
-#' Default = NULL (no selection on EPV)
-#' @param DA.p.val.threshold numeric; The p-val significant threshold. 
-#' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
+#' Possible values are "wilcox". Default = "none" i.e., no discriminant analysis.
+#' @param DA.p.adjust.method character; The p-value adjustment method for the 
+#' discriminant analysis. Default = "fdr".
+#' @param DA.event.per.variable numeric; The number of events per variable threshold.
+#' A common EPV is 10, meaning that we need 10 events per variable. Here we use it as 
+#' a way to select a fewer number of variables for a fixed number of samples. 
+#' Default = NULL (no selection on EPV).
+#' @param DA.p.val.threshold numeric; The p-value significance threshold.
+#' @param LR.prob.threshold numeric; The probability threshold for the logistic regression.
 #' @param signature.col.aggregate character; Column in y to combine cells into pseudobulk. 
-#' If NULL, no pseudobulk integration
-#' Default = NULL
-#' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
-#' default = "wilcox" from the Seurat::FindMarker() function
+#' If NULL, no pseudobulk integration. Default = NULL.
+#' @param DEA.method character; The Differential-expression-analysis method (see RunDEA()).
+#' Default = "wilcox" from the Seurat::FindMarker() function.
 #' @param DEA.data data.frame or matrix; The input matrix for the DEA. 
-#' Rows = samples, Columns = features. If NULL, the DEA.data is x
-#' Default = NULL
+#' Rows = samples, Columns = features. If NULL, the DEA.data is x. Default = NULL.
 #' @param sample.weights data.frame (rows = observation, column = weight); The 
-#' observation weights data.frame. 
-#' Default = NULL i.e. 1 for each observation
+#' observation weights data.frame. Default = NULL i.e., 1 for each observation.
 #' @param folds.save.folder character; Folder to save the fold model information. 
-#' If null doesn't save anything. if not null, a folder called "NCV_", fold.out.name, "_", fold.in.name
-#' will be created to store the model information in. 
-#' default = NULL
+#' If NULL, doesn't save anything. If not NULL, a folder called "NCV_", fold.out.name, "_", fold.in.name
+#' will be created to store the model information. Default = NULL.
 #' 
-#' @return data.frame summarizing the Nested-cross-validation
+#' @return data.frame summarizing the Nested-cross-validation.
 .NestedCrossValidationLoop <- function(x, y, 
                                   folds.outer, folds.outer.inner, 
                                   y.label, y.covariates = NULL, y.sample = NULL,
@@ -485,64 +471,56 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
 #' cross-validation by providing the `hyperparams.best.per.fold` parameter. 
 #' 
 #' @param x data.frame or matrix; The input matrix corresponding to the feature 
-#' space only. additional covariates are found in `y`. Rows = samples, 
-#' Columns = features
+#' space only. Additional covariates are found in `y`. Rows = samples, Columns = features.
 #' @param y data.frame or matrix; The output matrix. 
-#' Columns = c(y.label, y.covariates, y.sample)
+#' Columns = c(y.label, y.covariates, y.sample).
 #' @param CV.folds list; Cross-Validation folds definition list. See CreateCVFolds()
-#' @param y.label character; The column of `y` corresponding to the binary output
-#' @param y.covariates character vector; The columns of `y` corresponding to the covariates
-#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature"
-#' @param method character; The prediction method. Possible values are: "LR": 
-#' Logistic regression or "signature" signature-score approach. 
+#' @param y.label character; The column of `y` corresponding to the binary output.
+#' @param y.covariates character vector; The columns of `y` corresponding to the covariates.
+#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature".
+#' @param method character; The prediction method. Possible values are: 
+#' "LR" (Logistic regression) or "signature" (signature-score approach). 
 #' @param hyperparams list: The hyper-parameter list. 
-#' If not NULL: Stand-alone cross-validation. If NULL, second part of NCV.
-#' if method = "LR": Elements of list are 
-#'   - "alpha" (L2-regularization): Vector of alpha values (0-1)
-#'   - "lambda" (L1-regularization): Vector of lambda values (0-1)
-#' if method = "signature": Elements of list are 
-#'   - "signature.lengths": Vector of signature lengths
-#'   - "signature.side": Vector of siganture sides ("up", "down" or "both")
-#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
-#'   - "signature.methods": Vector of signature score method
+#' If method = "LR": Elements of the list are 
+#'   - "alpha" (L2-regularization): Vector of alpha values (0-1).
+#'   - "lambda" (L1-regularization): Vector of lambda values (0-1).
+#' If method = "signature": Elements of the list are 
+#'   - "signature.lengths": Vector of signature lengths.
+#'   - "signature.side": Vector of signature sides ("up", "down", or "both").
+#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature).
+#'   - "signature.methods": Vector of signature score methods.
+#'   - "signature.selection.method": How to select genes from DEA res using the log-Fold-Change ("logFC") or p-values ("pval")
 #' @param hyperparams.best.per.fold data.frame; The best partameters for each 
 #' fold found by Nested-cross-validation. This parameter is the output of 
 #' GetBestOuterHyperparams()
-#' @param data.trans.method character: The data transforamtion method. 
-#' Possible values are "pca" 
-#' Default = "none" i.e. no transformation. 
-#' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
-#' to select PCs explaining more variance than the threhsold
-#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' @param data.trans.method character; The data transformation method. 
+#' Possible values are "pca". Default = "none" i.e., no transformation. 
+#' @param pca.explained.var.threshold numeric; If not NULL, apply this threshold 
+#' to select PCs explaining more variance than the threshold.
+#' @param rm.corr.features logical; Do we remove the mutually correlated features 
 #' while keeping the ones that best correlate with the outcome? 
-#' default = F
+#' Default = FALSE.
 #' @param DA.method character; The discriminant analysis (DA) method. 
-#' Possible values are "wilcox"
-#' Default = "none" i.e. no discriminant analysis
-#' @param DA.p.adjust.method character; The p-value adjust method for the 
-#' discriminant analysis. 
-#' Default = "fdr"
-#' @param DA.p.val.threshold numeric; The p-val significant threshold. 
-#' @param DA.event.per.variable, numerical; The number of event per variable threshold
-#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-#' a way to select a fewer amount of variables for a fixed amount of samples. 
-#' Default = NULL (no selection on EPV)
-#' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
+#' Possible values are "wilcox". Default = "none" i.e., no discriminant analysis.
+#' @param DA.p.adjust.method character; The p-value adjustment method for the 
+#' discriminant analysis. Default = "fdr".
+#' @param DA.event.per.variable numeric; The number of events per variable threshold.
+#' A common EPV is 10, meaning that we need 10 events per variable. Here we use it as 
+#' a way to select a fewer number of variables for a fixed number of samples. 
+#' Default = NULL (no selection on EPV).
+#' @param DA.p.val.threshold numeric; The p-value significance threshold.
+#' @param LR.prob.threshold numeric; The probability threshold for the logistic regression.
 #' @param signature.col.aggregate character; Column in y to combine cells into pseudobulk. 
-#' If NULL, no pseudobulk integration
-#' Default = NULL
-#' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
-#' default = "wilcox" from the Seurat::FindMarker() function
+#' If NULL, no pseudobulk integration. Default = NULL.
+#' @param DEA.method character; The Differential-expression-analysis method (see RunDEA()).
+#' Default = "wilcox" from the Seurat::FindMarker() function.
 #' @param DEA.data data.frame or matrix; The input matrix for the DEA. 
-#' Rows = samples, Columns = features. If NULL, the DEA.data is x
-#' Default = NULL
+#' Rows = samples, Columns = features. If NULL, the DEA.data is x. Default = NULL.
 #' @param sample.weights data.frame (rows = observation, column = weight); The 
-#' observation weights data.frame. 
-#' Default = NULL i.e. 1 for each observation
+#' observation weights data.frame. Default = NULL i.e., 1 for each observation.
 #' @param folds.save.folder character; Folder to save the fold model information. 
-#' If null doesn't save anything. if not null, a folder called "CV_", fold.out.name
-#' will be created to store the model information in. 
-#' default = NULL
+#' If NULL, doesn't save anything. If not NULL, a folder called "NCV_", fold.out.name, "_", fold.in.name
+#' will be created to store the model information. Default = NULL.
 #' 
 #' @return data.frame summarizing the Nested-cross-validation
 .CrossValidationLoop <- function(x, y, 
@@ -713,22 +691,23 @@ CreateNestedCVFolds <- function(y, y.leave.1.out = NULL, k.out = 5, k.in = 5,
   return(CV.res)
 }
 
-#' Get the best hyper-parameters for Nested cross validation
+
+#' Get the Best Hyper-parameters for Nested Cross Validation
 #' 
 #' Function to get the best hyper-parameters for the nested cross validation. 
 #' It can compute all hyperparameters in a list. 
-#' It can simultaneously get the best hyper-parameters for mcc, accuracy, F1 and kappa. 
+#' It can simultaneously get the best hyper-parameters for MCC, accuracy, F1, and kappa. 
 #' 
-#' @param CV.res data.frame; Nested-Cross-Validation results as returned by .CrossValidationLoop() or .NestedCrossValidationLoop()
-#' @param method characters; The method of the origin model. possible values are  
-#' "LR" (default), "signature"
-#' @param CV.type characters; The name of the cross-validation type. Possible 
-#' values are "CV" (default) or "NCV"
-#' @param outer.col character; The name of the outer-fold column in outer.col
+#' @param CV.res data.frame; Nested-Cross-Validation results as returned by .CrossValidationLoop() or .NestedCrossValidationLoop().
+#' @param method character; The method of the origin model. Possible values are  
+#' "LR" (default), "signature".
+#' @param CV.type character; The name of the cross-validation type. Possible 
+#' values are "CV" (default) or "NCV".
+#' @param outer.col character; The name of the outer-fold column in CV.res.
 #' @param selection.metric character; Selection metrics. Possible values are 
-#' "mcc" (default), "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV"
+#' "mcc" (default), "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV".
 #' 
-#' @return data.frame; Data frame summarizing the best hyper-parameters for each outerfold
+#' @return data.frame; Data frame summarizing the best hyper-parameters for each outer fold.
 #' 
 #' @export
 GetBestHyperparams <- function(CV.res, 
@@ -791,84 +770,75 @@ GetBestHyperparams <- function(CV.res,
   return(hyperparams.best)
 }
 
-#' Nested Cross Validation
+
+#' Nested Cross Validation loop
 #' 
 #' Home Nested Cross validation function
 #' 
 #' @param x data.frame or matrix; The input matrix corresponding to the feature 
-#' space only. additional covariates are found in `y`. Rows = samples, 
-#' Columns = features
+#' space only. Additional covariates are found in `y`. Rows = samples, Columns = features.
 #' @param y data.frame or matrix; The output matrix. 
-#' Columns = c(y.label, y.covariates, y.sample)
-#' @param CV.k.out numerical: The number of outer folds
-#' Default = 5
-#' @param CV.k.in numerical: The number of inner folds
-#' Default = 5
-#' @param CV.y.leave.1.out.column vector; If not NULL, vector to create Leave-1-out category CV
+#' Columns = c(y.label, y.covariates, y.sample).
+#' @param CV.k.out numeric; The number of outer folds. Default = 5.
+#' @param CV.k.in numeric; The number of inner folds. Default = 5.
+#' @param CV.y.leave.1.out.column vector; If not NULL, vector to create Leave-1-out category CV.
 #' @param CV.sampling.method character; The sampling method to balance the folds. 
-#' if "under", Undersampling is performed to balance the categories in every fold
-#' if "upper", Uppersampling is performed to balance the categories in every fold
-#' if "none", no balancing sampling is performed. 
-#' Default = "under"
-#' @param CV.replicates numerical; The number of replicates. 
-#' At each replicate, the seed is increased by 1
-#' @param y.label character; The column of `y` corresponding to the binary output
-#' @param y.covariates character vector; The columns of `y` corresponding to the covariates
-#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature"
-#' @param method character; The prediction method. Possible values are: "LR": 
-#' Logistic regression or "signature" signature-score approach. 
-#' @param metric.to.optimize character; metric to optimize. 
-#' Default = mcc
+#' If "under", undersampling is performed to balance the categories in every fold. (default)
+#' If "upper", oversampling is performed to balance the categories in every fold.
+#' If "none", no balancing sampling is performed.
+#' @param CV.replicates numeric; The number of replicates. 
+#' At each replicate, the seed is increased by 1.
+#' @param y.label character; The column of `y` corresponding to the binary output.
+#' @param y.covariates character vector; The columns of `y` corresponding to the covariates.
+#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature".
+#' @param method character; The prediction method. Possible values are: 
+#' "LR" (Logistic regression) or "signature" (signature-score approach). 
+#' @param metric.to.optimize character; metric to optimize. Default = mcc
 #' @param hyperparams list: The hyper-parameter list. 
-#' if method = "LR": Elements of list are 
-#'   - "alpha" (L2-regularization): Vector of alpha values (0-1)
-#'   - "lambda" (L1-regularization): Vector of lambda values (0-1)
-#' if method = "signature": Elements of list are 
-#'   - "signature.lengths": Vector of signature lengths
-#'   - "signature.side": Vector of siganture sides ("up", "down" or "both")
-#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
-#'   - "signature.methods": Vector of signature score methods
-#' @param data.trans.method character: The data transforamtion method. 
-#' Possible values are "pca" 
-#' Default = "none" i.e. no transformation. 
-#' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
-#' to select PCs explaining more variance than the threhsold
-#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' If method = "LR": Elements of the list are 
+#'   - "alpha" (L2-regularization): Vector of alpha values (0-1).
+#'   - "lambda" (L1-regularization): Vector of lambda values (0-1).
+#' If method = "signature": Elements of the list are 
+#'   - "signature.lengths": Vector of signature lengths.
+#'   - "signature.side": Vector of signature sides ("up", "down", or "both").
+#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature).
+#'   - "signature.methods": Vector of signature score methods.
+#'   - "signature.selection.method": How to select genes from DEA res using the log-Fold-Change ("logFC") or p-values ("pval")
+#' @param data.trans.method character; The data transformation method. 
+#' Possible values are "pca". Default = "none" i.e., no transformation. 
+#' @param pca.explained.var.threshold numeric; If not NULL, apply this threshold 
+#' to select PCs explaining more variance than the threshold.
+#' @param rm.corr.features logical; Do we remove the mutually correlated features 
 #' while keeping the ones that best correlate with the outcome? 
-#' default = F
+#' Default = FALSE.
 #' @param DA.method character; The discriminant analysis (DA) method. 
-#' Possible values are "wilcox"
-#' Default = "none" i.e. no discriminant analysis
-#' @param DA.p.adjust.method character; The p-value adjust method for the 
-#' discriminant analysis. 
-#' Default = "fdr"
-#' @param DA.event.per.variable, numerical; The number of event per variable threshold
-#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-#' a way to select a fewer amount of variables for a fixed amount of samples. 
-#' Default = NULL (no selection on EPV)
-#' @param DA.p.val.threshold numeric; The p-val significant threshold. 
-#' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
+#' Possible values are "wilcox". Default = "none" i.e., no discriminant analysis.
+#' @param DA.p.adjust.method character; The p-value adjustment method for the 
+#' discriminant analysis. Default = "fdr".
+#' @param DA.event.per.variable numeric; The number of events per variable threshold.
+#' A common EPV is 10, meaning that we need 10 events per variable. Here we use it as 
+#' a way to select a fewer number of variables for a fixed number of samples. 
+#' Default = NULL (no selection on EPV).
+#' @param DA.p.val.threshold numeric; The p-value significance threshold.
+#' @param LR.prob.threshold numeric; The probability threshold for the logistic regression.
 #' @param signature.col.aggregate character; Column in y to combine cells into pseudobulk. 
-#' If NULL, no pseudobulk integration
-#' Default = NULL
-#' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
-#' default = "wilcox" from the Seurat::FindMarker() function
+#' If NULL, no pseudobulk integration. Default = NULL.
+#' @param DEA.method character; The Differential-expression-analysis method (see RunDEA()).
+#' Default = "wilcox" from the Seurat::FindMarker() function.
 #' @param DEA.data data.frame or matrix; The input matrix for the DEA. 
-#' Rows = samples, Columns = features. If NULL, the DEA.data is x
-#' Default = NULL
+#' Rows = samples, Columns = features. If NULL, the DEA.data is x. Default = NULL.
 #' @param sample.weights data.frame (rows = observation, column = weight); The 
-#' observation weights data.frame. 
-#' Default = NULL i.e. 1 for each observation
+#' observation weights data.frame. Default = NULL i.e., 1 for each observation.
 #' @param folds.save.folder character; Folder to save the fold model information. 
-#' If null doesn't save anything. if not null, a folder called "NCV_", fold.out.name, "_", fold.in.name
-#' will be created to store the model information in. 
-#' default = NULL
-#' @param file.NCV.inner character; If not null, save inner fold information to this file
-#' Default = NULL
-#' @param file.NCV.outer character; If not null, save outer fold information to this file
-#' Default = NULL
+#' If NULL, doesn't save anything. If not NULL, a folder called "NCV_", fold.out.name, "_", fold.in.name
+#' will be created to store the model information. Default = NULL
+#' @param file.NCV.inner character; If not null, save inner fold information to this file. Default = NULL
+#' @param file.NCV.outer character; If not null, save outer fold information to this file. Default = NULL
+#' @param seed numerical: The seed (default = .Random.seed[1])
 #' 
 #' @return data.frame summarizing the Nested-cross-validation
+#' 
+#'  @export
 NestedCrossValidation <- function(x, y, 
                                   CV.k.in = 5, CV.k.out = 5, CV.y.leave.1.out.column = NULL,
                                   CV.replicates = 1,
@@ -1007,80 +977,72 @@ NestedCrossValidation <- function(x, y,
   return(list("NCV.outer.res" = NCV.outer.res, "NCV.inner.res" = NCV.inner.res))
 }
 
-#'Cross Validation
+#' Cross Validation loop
 #' 
 #' Home Cross validation function
 #' 
 #' @param x data.frame or matrix; The input matrix corresponding to the feature 
-#' space only. additional covariates are found in `y`. Rows = samples, 
-#' Columns = features
+#' space only. Additional covariates are found in `y`. Rows = samples, Columns = features.
 #' @param y data.frame or matrix; The output matrix. 
-#' Columns = c(y.label, y.covariates, y.sample)
-#' @param CV.k numerical: The number of folds
-#' Default = 5
-#' @param CV.y.leave.1.out.column vector; If not NULL, vector to create Leave-1-out category CV
+#' Columns = c(y.label, y.covariates, y.sample).
+#' @param CV.k numerical: The number of folds. Default = 5.
+#' @param CV.y.leave.1.out.column vector; If not NULL, vector to create Leave-1-out category CV.
 #' @param CV.sampling.method character; The sampling method to balance the folds. 
-#' if "under", Undersampling is performed to balance the categories in every fold
-#' if "upper", Uppersampling is performed to balance the categories in every fold
-#' if "none", no balancing sampling is performed. 
-#' Default = "under"
-#' @param CV.replicates numerical; The number of replicates. 
-#' At each replicate, the seed is increased by 1
-#' @param y.label character; The column of `y` corresponding to the binary output
-#' @param y.covariates character vector; The columns of `y` corresponding to the covariates
-#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature"
-#' @param method character; The prediction method. Possible values are: "LR": 
-#' Logistic regression or "signature" signature-score approach. 
-#' @param metric.to.optimize character; metric to optimize. 
-#' Default = mcc
+#' If "under", undersampling is performed to balance the categories in every fold. (default)
+#' If "upper", oversampling is performed to balance the categories in every fold.
+#' If "none", no balancing sampling is performed.
+#' @param CV.replicates numeric; The number of replicates. 
+#' At each replicate, the seed is increased by 1.
+#' @param y.label character; The column of `y` corresponding to the binary output.
+#' @param y.covariates character vector; The columns of `y` corresponding to the covariates.
+#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature".
+#' @param method character; The prediction method. Possible values are: 
+#' "LR" (Logistic regression) or "signature" (signature-score approach). 
+#' @param metric.to.optimize character; metric to optimize. Default = mcc
 #' @param hyperparams list: The hyper-parameter list. 
-#' if method = "LR": Elements of list are 
-#'   - "alpha" (L2-regularization): Vector of alpha values (0-1)
-#'   - "lambda" (L1-regularization): Vector of lambda values (0-1)
-#' if method = "signature": Elements of list are 
-#'   - "signature.lengths": Vector of signature lengths
-#'   - "signature.side": Vector of siganture sides ("up", "down" or "both")
-#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
-#'   - "signature.methods": Vector of signature score methods
-#' @param data.trans.method character: The data transforamtion method. 
-#' Possible values are "pca" 
-#' Default = "none" i.e. no transformation. 
-#' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
-#' to select PCs explaining more variance than the threhsold
-#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' If method = "LR": Elements of the list are 
+#'   - "alpha" (L2-regularization): Vector of alpha values (0-1).
+#'   - "lambda" (L1-regularization): Vector of lambda values (0-1).
+#' If method = "signature": Elements of the list are 
+#'   - "signature.lengths": Vector of signature lengths.
+#'   - "signature.side": Vector of signature sides ("up", "down", or "both").
+#'   - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature).
+#'   - "signature.methods": Vector of signature score methods.
+#'   - "signature.selection.method": How to select genes from DEA res using the log-Fold-Change ("logFC") or p-values ("pval")
+#' @param data.trans.method character; The data transformation method. 
+#' Possible values are "pca". Default = "none" i.e., no transformation. 
+#' @param pca.explained.var.threshold numeric; If not NULL, apply this threshold 
+#' to select PCs explaining more variance than the threshold.
+#' @param rm.corr.features logical; Do we remove the mutually correlated features 
 #' while keeping the ones that best correlate with the outcome? 
-#' default = F
+#' Default = FALSE.
 #' @param DA.method character; The discriminant analysis (DA) method. 
-#' Possible values are "wilcox"
-#' Default = "none" i.e. no discriminant analysis
-#' @param DA.p.adjust.method character; The p-value adjust method for the 
-#' discriminant analysis. 
-#' Default = "fdr"
-#' @param DA.event.per.variable, numerical; The number of event per variable threshold
-#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-#' a way to select a fewer amount of variables for a fixed amount of samples. 
-#' Default = NULL (no selection on EPV)
-#' @param DA.p.val.threshold numeric; The p-val significant threshold. 
-#' @param LR.prob.threhsold numeric; The probability threshold for the logitic regression
+#' Possible values are "wilcox". Default = "none" i.e., no discriminant analysis.
+#' @param DA.p.adjust.method character; The p-value adjustment method for the 
+#' discriminant analysis. Default = "fdr".
+#' @param DA.event.per.variable numeric; The number of events per variable threshold.
+#' A common EPV is 10, meaning that we need 10 events per variable. Here we use it as 
+#' a way to select a fewer number of variables for a fixed number of samples. 
+#' Default = NULL (no selection on EPV).
+#' @param DA.p.val.threshold numeric; The p-value significance threshold.
+#' @param LR.prob.threshold numeric; The probability threshold for the logistic regression.
 #' @param signature.col.aggregate character; Column in y to combine cells into pseudobulk. 
-#' If NULL, no pseudobulk integration
-#' Default = NULL
-#' @param DEA.method character; The Differential-expression-analylsis method (see RunDEA())
-#' default = "wilcox" from the Seurat::FindMarker() function
+#' If NULL, no pseudobulk integration. Default = NULL.
+#' @param DEA.method character; The Differential-expression-analysis method (see RunDEA()).
+#' Default = "wilcox" from the Seurat::FindMarker() function.
 #' @param DEA.data data.frame or matrix; The input matrix for the DEA. 
-#' Rows = samples, Columns = features. If NULL, the DEA.data is x
-#' Default = NULL
+#' Rows = samples, Columns = features. If NULL, the DEA.data is x. Default = NULL.
 #' @param sample.weights data.frame (rows = observation, column = weight); The 
-#' observation weights data.frame. 
-#' Default = NULL i.e. 1 for each observation
+#' observation weights data.frame. Default = NULL i.e., 1 for each observation.
 #' @param folds.save.folder character; Folder to save the fold model information. 
-#' If null doesn't save anything. if not null, a folder called "NCV_", fold.out.name, "_", fold.in.name
-#' will be created to store the model information in. 
-#' default = NULL
-#' @param file.CV character; If not null, save fold information to this file
-#' Default = NULL
+#' If NULL, doesn't save anything. If not NULL, a folder called "NCV_", fold.out.name, "_", fold.in.name
+#' will be created to store the model information. Default = NULL
+#' @param file.CV character; If not null, save fold information to this file. Default = NULL
+#' @param seed numerical: The seed (default = .Random.seed[1])
 #' 
 #' @return data.frame summarizing the Nested-cross-validation
+#' 
+#'  @export
 CrossValidation <- function(x, y, 
                             CV.k = 5, 
                             CV.y.leave.1.out.column = NULL,

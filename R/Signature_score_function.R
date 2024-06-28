@@ -1,7 +1,7 @@
 # Signature scoring functions
 # Author: Rémy Pétremand
 # Date: 07.05.2024
-# Description: Function to score the cells baed on signatures
+# Description: Function to score the cells based on signatures
 # Reference: https://doi.org/10.1038/s41587-024-02232-0
 
 # ------------------------------------------------------------------------------

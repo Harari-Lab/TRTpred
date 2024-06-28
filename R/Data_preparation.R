@@ -28,54 +28,50 @@ DEA.METHODS <- c(SEURAT.METHODS, DESEQ.METHODS, EDGER.METHODS, LIMMA.METHODS)
 # Functions
 # ------------------------------------------------------------------------------
 
-#' Prepare data for machine learning
+#' Prepare Data for Machine Learning
 #' 
-#' Function which compiles the different steps to prepare the input data for some model. 
+#' This function compiles the various steps to prepare input data for a model. 
 #' The steps are:
 #' 1. Data Transformation (data.trans.method)
 #' 2. Remove Correlated Features (rm.corr.features)
-#' 3. Discriminant analysis (DA.method)
+#' 3. Discriminant Analysis (DA.method)
 #' 
-#' Note that every step can be skipped by setting the corresponding parameters 
-#' to "none", False, "none" respectively. 
+#' Note that each step can be skipped by setting the corresponding parameters 
+#' to "none", FALSE, and "none" respectively. 
 #' 
 #' @param x.train data.frame or matrix; The input matrix corresponding to the feature 
-#' space only. Additional covariates are found in `y`. Rows = samples, Columns = features
+#' space only. Additional covariates are found in `y`. Rows represent samples, Columns represent features.
 #' @param y.train data.frame or matrix; The output matrix. 
 #' Columns = c(y.label, y.covariates, y.sample)
-#' @param x.test data.frame or matrix; The input data like x.train but for testing
-#' @param y.test data.frame or matrix; The output matrix like y.train but for testing
-#' @param y.label character; The column of `y` corresponding to the binary output
-#' @param y.covariates character vector; The columns of `y` corresponding to the covariates
-#' @param y.sample character; The column of `y` corresponding to the samples for when method = "signature"
-#' @param method character; The prediction method. Possible values are: "LR": 
-#' Logistic regression or "signature" signature-score approach. 
+#' @param x.test data.frame or matrix; The input data similar to x.train but for testing.
+#' @param y.test data.frame or matrix; The output matrix similar to y.train but for testing.
+#' @param y.label character; The column of `y` corresponding to the binary output.
+#' @param y.covariates character vector; The columns of `y` corresponding to the covariates.
+#' @param y.sample character; The column of `y` corresponding to the samples when method = "signature".
+#' @param method character; The prediction method. Possible values are: "LR" (Logistic regression) or "signature" (signature-score approach).
 #' @param DEA.data data.frame or matrix; The input matrix for the DEA. 
-#' Rows = samples, Columns = features. If NULL, the DEA.data is x
-#' Default = NULL
-#' @param data.trans.method character: The data transforamtion method. 
-#' Possible values are "pca" 
-#' Default = "none" i.e. no transformation. 
-#' @param pca.explained.var.threshold numeric: If not NULL, apply this threshold 
-#' to select PCs explaining more variance than the threhsold
-#' @param rm.corr.features logical: Do we remove the mutually correlated feature 
+#' Rows represent samples, Columns represent features. If NULL, DEA.data is set to x.
+#' Default = NULL.
+#' @param data.trans.method character; The data transformation method. 
+#' Possible values are "pca". Default = "none" (i.e., no transformation).
+#' @param pca.explained.var.threshold numeric; If not NULL, apply this threshold 
+#' to select PCs explaining more variance than the threshold.
+#' @param rm.corr.features logical; Should mutually correlated features be removed 
 #' while keeping the ones that best correlate with the outcome? 
-#' default = F
-#' @param rm.corr.features.threhsold numerical: The correlation threshold of rm.corr.features
-#' Default = 0.8
+#' Default = FALSE.
+#' @param rm.corr.features.threshold numeric; The correlation threshold for rm.corr.features.
+#' Default = 0.8.
 #' @param DA.method character; The discriminant analysis (DA) method. 
-#' Possible values are "wilcox"
-#' Default = "none" i.e. no discriminant analysis
-#' @param DA.p.adjust.method character; The p-value adjust method for the 
-#' discriminant analysis. 
-#' Default = "fdr"
-#' @param DA.p.val.threshold numeric; The p-val significant threshold. 
-#' @param DA.event.per.variable, numerical; The number of event per variable threshold
-#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-#' a way to select a fewer amount of variables for a fixed amount of samples. 
-#' Default = NULL (no selection on EPV)
+#' Possible values are "wilcox". Default = "none" (i.e., no discriminant analysis).
+#' @param DA.p.adjust.method character; The p-value adjustment method for the 
+#' discriminant analysis. Default = "fdr".
+#' @param DA.p.val.threshold numeric; The p-value significance threshold.
+#' @param DA.event.per.variable numeric; The number of events per variable threshold.
+#' A common EPV is 10, meaning that we need 10 events per variable. Here, it is used 
+#' to select fewer variables for a fixed number of samples. 
+#' Default = NULL (no selection based on EPV).
 #' 
-#' @return data.frame summarizing the Nested-cross-validation
+#' @return data.frame summarizing the Nested-cross-validation.
 #' 
 #' @export
 PrepareData <- function(
@@ -225,22 +221,19 @@ PrepareData <- function(
   return(return.list)
 }
 
-#' Feature space transformation function
+#' Feature Space Transformation Function
 #' 
-#' Function to transforme the feature space into another feature space. Example 
-#' with PCA
+#' Function to transform the feature space into another feature space, e.g., with PCA.
 #' 
-#' @param x.train data.frame or matrix; The training input data. Train the PCA on it
-#' @param x.train data.frame or matrix; The testing input data. Apply (predict) the trained PCA on it
+#' @param x.train data.frame or matrix; The training input data. Train the PCA on this data.
+#' @param x.test data.frame or matrix; The testing input data. Apply (predict) the trained PCA on this data.
+#' @param method character; The data transformation method. Possible values are: "pca".
+#' Default = "pca".
+#' @param explained.var.threshold numeric; If method = "pca", this threshold is used to 
+#' select the PCs with explained variance above the threshold.
+#' Default = NULL (no threshold).
 #' 
-#' @param method character; The data transformation method.  
-#' possible values are : pca
-#' Default = pca
-#' @param explained.var.threshold numerical; If method = "pca". Threshold to 
-#' select the PCs with explained variable above the threshold
-#' Default = NULL (no threshold)
-#' 
-#' @return list of traingin and testing data.frames of transformed data
+#' @return list; A list of training and testing data.frames of transformed data.
 #' 
 #' @export
 FeatureTrans <- function(x.train, x.test = NULL, 
@@ -302,32 +295,26 @@ FeatureTrans <- function(x.train, x.test = NULL,
   return(list("x.train" = x.train.res, "x.test" = x.test.res))
 }
 
-
-#' Discriminant analysis function
+#' Discriminant Analysis Function
 #' 
-#' @description 
-#' This function compute the discriminant analysis of some feature space when 
-#' comparing two classes in some categorical variable.
-#' The discriminant analysis methods implemented are "wilcoxon rank sum test" 
+#' Computes discriminant analysis of a feature space for comparing two classes in a categorical variable.
+#' The implemented discriminant analysis method is Wilcox rank sum test.
 #' 
-#' @param x data.frame; The input feature space data
-#' @param y categorical vector; The binary output
-#' @param method character; The discriminant analysis method. Possible values are 
-#' wilcox. 
-#' @param p.adjust.method, character; The name of the method to adjust the p-value.
-#' possible values are methods in `stats::p.adjust()` i.e. "bonferroni", "fdr", 
+#' @param x data.frame; The input feature space data.
+#' @param y categorical vector; The binary output.
+#' @param method character; The discriminant analysis method. Possible value is "wilcox".
+#' @param p.adjust.method character; The name of the method to adjust the p-value.
+#' Possible values are methods in `stats::p.adjust()`, such as "bonferroni", "fdr" (deafault), 
 #' "holm", "hochberg", "hommel", "BH", "BY", "none".
-#' Default = "fdr"
-#' @param p.val.threshold, numerical; The p-val significant threshold 
-#' Default = 0.05
-#' @param event.per.variable, numerical; The number of event per variable threshold
-#' A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-#' a way to select a fewer amount of variables for a fixed amount of samples. 
-#' Default = NULL (no selection on EPV)
+#' @param p.val.threshold numeric; The p-value significance threshold. Default = 0.05.
+#' @param event.per.variable numeric; The number of events per variable threshold.
+#' A common EPV is 10, meaning that we need 10 events per variable. Here, it is used 
+#' to select fewer variables for a fixed number of samples. 
+#' Default = NULL (no selection based on EPV).
 #' 
-#' @return data.frame. The results form the discriminant analysis. 
-#'  - row.names = features
-#'  - column names = "p_val" (numerical), "p_val_adj" (numerical) & "Significant" (logical)
+#' @return data.frame; The results from the discriminant analysis.
+#'   - row names = features
+#'   - column names = "p_val" (numeric), "p_val_adj" (numeric), and "Significant" (logical)
 #' 
 #' @export
 DiscrAnalysisBinary <- function(x, y, y.label, 
@@ -432,7 +419,7 @@ DiscrAnalysisBinary <- function(x, y, y.label,
 #' 
 #' @param x data.frame; The input feature space data
 #' @param y categorical vector; The binary output
-#' @param threshold numerical; Significant correlaltion threhsolld
+#' @param threshold numerical; Significant correlation threshold
 #' default = 0.8
 #' 
 #' @return data.frame. The results form the discriminant analysis. 
@@ -477,7 +464,7 @@ RemoveMutuallyCorrFeatures <- function(x, y, threshold = 0.8){
 #' This function prepare training data from Seurat object
 #' 
 #' @param SeuratObject Seurat object; The Seurat object (required)
-#' @param label character; The y-label (i.e tumor reactivity) (required)
+#' @param label character; The y-label (i.e tumor reactivtiy) (required)
 #' @param label.order character; the order of the y-label to transform them into factor
 #' @param assay character; The Seurat assay (default = "RNA")
 #' @param slot character; The assay slot (default = "slot")
@@ -485,7 +472,7 @@ RemoveMutuallyCorrFeatures <- function(x, y, threshold = 0.8){
 #' Default = NULL = same as assay
 #' @param DEA.slot character; The assay slot used for the Differential Expression Analysis 
 #' Default = NULL = same as slot
-#' @param DEA.pseudobulk.col character; The colname in Seurat used to construct pseudobluck for the pseudobulk DEA
+#' @param DEA.pseudobulk.col character; The column names in Seurat used to construct pseudobluk for the pseudobluk DEA
 #' Default = NULL
 #' @param covariates characters; The covariates list
 #' Default = NULL

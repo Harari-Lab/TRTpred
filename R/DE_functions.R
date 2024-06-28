@@ -1,4 +1,4 @@
-# Differential Expression funtion
+# Differential Expression function
 # Author: Rémy Pétremand
 # Date: 07.05.2024
 # Description: Function to perform differential expression analysis
@@ -51,6 +51,8 @@ SEURAT.METHODS <- c("wilcox", "bimod", "roc", "t", "negbinom", "poisson", "LR")
 #' @return list of two elements
 #' - data = aggregated data (matrix)
 #' - colData = aggreagted colData (data.frame)
+#' 
+#' @export
 getPseudoBulk <- function(data, colData, col.aggregate){
   
   # Aggregate colData
@@ -118,6 +120,8 @@ getPseudoBulk <- function(data, colData, col.aggregate){
 #' Default = NULL
 #' 
 #' @return data.frame. The DE result data.frame
+#' 
+#' @export
 RunDEA <- function(object, col.DE_group, 
                    assay = NULL, slot = "data", 
                    method = c(SEURAT.METHODS, EDGER.METHODS, LIMMA.METHODS, DESEQ.METHODS), 
