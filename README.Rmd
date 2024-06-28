@@ -9,7 +9,7 @@ output:
 
 [![DOI](https://img.shields.io/badge/DOI%3A-10.1038/s41587--024--02232--0-brightgreen)](https://doi.org/10.1038/s41587-024-02232-0)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11401545.svg)](https://doi.org/10.5281/zenodo.11401545)
-[![License](https://img.shields.io/badge/License-LICENSE-green)](./LICENSE)
+[![License](https://img.shields.io/badge/License-LICENSE-green)](./LICENSE_TRTpred.pdf)
 
 
 # TRTpred library
