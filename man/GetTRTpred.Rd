@@ -2,7 +2,7 @@
 % Please edit documentation in R/main.R
 \name{GetTRTpred}
 \alias{GetTRTpred}
-\title{Get Models perdiction}
+\title{Get Models prediction}
 \usage{
 GetTRTpred(
   seurat.obj,
@@ -13,7 +13,7 @@ GetTRTpred(
 )
 }
 \arguments{
-\item{seurat.obj}{Seurat Object; RNA-sequing single-cell object (required)}
+\item{seurat.obj}{Seurat Object; RNA-sequencing single-cell object (required)}
 
 \item{seurat.assay}{character; The name of the seurat assay. 
 Default = "RNA"}

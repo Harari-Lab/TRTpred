@@ -2,7 +2,7 @@
 % Please edit documentation in R/Logistic_regression.R
 \name{LRCrossValidation}
 \alias{LRCrossValidation}
-\title{Logitic Regression Cross validation function}
+\title{Logistic Regression Cross validation function}
 \usage{
 LRCrossValidation(
   data.train,

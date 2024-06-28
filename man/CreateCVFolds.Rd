@@ -18,26 +18,23 @@ CreateCVFolds(
 
 \item{y.leave.1.out}{vector; If not NULL, vector to create Leave-1-out category CV}
 
-\item{k}{numerical: The number of outer folds
-Default = 5}
+\item{k}{numerical: The number of outer folds (default = 5)}
 
-\item{replicates}{numerical; The number of replicates. 
-At each replicate, the seed is increased by 1. Default = 1}
+\item{replicates}{numerical; The number of replicates. At each replicate, the seed is increased by 1 (default = 1)}
 
-\item{sampling.method}{character; The sampling method to balance the folds. 
-if "under", Undersampling is performed to balance the categories in every fold
-if "upper", Uppersampling is performed to balance the categories in every fold
-if "none", no balancing sampling is performed. 
-Default = "under"}
+\item{sampling.method}{character; The sampling method to balance the folds:
+- "under": Undersampling is performed to balance the categories in every fold (default)
+- "upper": Oversampling is performed to balance the categories in every fold
+- "none": No balancing sampling is performed}
 
-\item{seed}{numerical: The seed Default = .Random.seed[1]}
+\item{seed}{numerical: The seed (default = .Random.seed[1])}
 }
 \value{
 list containing the index of each sample belonging to the training and testing set for every fold
-names of list = names of CV folds. values of list = list with two names 
-- train: Training sample indexes
-- test: Testing sample indexes
+  Names of the list correspond to the names of CV folds, and values of the list contain two names:
+  - "train": Training sample indexes
+  - "test": Testing sample indexes
 }
 \description{
-Function to create cross validation folds
+Function to create cross-validation folds
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/Data_preparation.R
 \name{DiscrAnalysisBinary}
 \alias{DiscrAnalysisBinary}
-\title{Discriminant analysis function}
+\title{Discriminant Analysis Function}
 \usage{
 DiscrAnalysisBinary(
   x,
@@ -18,33 +18,29 @@ DiscrAnalysisBinary(
 )
 }
 \arguments{
-\item{x}{data.frame; The input feature space data}
+\item{x}{data.frame; The input feature space data.}
 
-\item{y}{categorical vector; The binary output}
+\item{y}{categorical vector; The binary output.}
 
-\item{method}{character; The discriminant analysis method. Possible values are 
-wilcox.}
+\item{method}{character; The discriminant analysis method. Possible value is "wilcox".}
 
-\item{p.adjust.method, }{character; The name of the method to adjust the p-value.
-possible values are methods in `stats::p.adjust()` i.e. "bonferroni", "fdr", 
-"holm", "hochberg", "hommel", "BH", "BY", "none".
-Default = "fdr"}
+\item{p.adjust.method}{character; The name of the method to adjust the p-value.
+Possible values are methods in `stats::p.adjust()`, such as "bonferroni", "fdr" (deafault), 
+"holm", "hochberg", "hommel", "BH", "BY", "none".}
 
-\item{p.val.threshold, }{numerical; The p-val significant threshold 
-Default = 0.05}
+\item{p.val.threshold}{numeric; The p-value significance threshold. Default = 0.05.}
 
-\item{event.per.variable, }{numerical; The number of event per variable threshold
-A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-a way to select a fewer amount of variables for a fixed amount of samples. 
-Default = NULL (no selection on EPV)}
+\item{event.per.variable}{numeric; The number of events per variable threshold.
+A common EPV is 10, meaning that we need 10 events per variable. Here, it is used 
+to select fewer variables for a fixed number of samples. 
+Default = NULL (no selection based on EPV).}
 }
 \value{
-data.frame. The results form the discriminant analysis. 
- - row.names = features
- - column names = "p_val" (numerical), "p_val_adj" (numerical) & "Significant" (logical)
+data.frame; The results from the discriminant analysis.
+  - row names = features
+  - column names = "p_val" (numeric), "p_val_adj" (numeric), and "Significant" (logical)
 }
 \description{
-This function compute the discriminant analysis of some feature space when 
-comparing two classes in some categorical variable.
-The discriminant analysis methods implemented are "wilcoxon rank sum test"
+Computes discriminant analysis of a feature space for comparing two classes in a categorical variable.
+The implemented discriminant analysis method is Wilcox rank sum test.
 }

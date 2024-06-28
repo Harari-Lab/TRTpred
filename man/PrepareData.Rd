@@ -2,7 +2,7 @@
 % Please edit documentation in R/Data_preparation.R
 \name{PrepareData}
 \alias{PrepareData}
-\title{Prepare data for machine learning}
+\title{Prepare Data for Machine Learning}
 \usage{
 PrepareData(
   x.train,
@@ -27,68 +27,64 @@ PrepareData(
 }
 \arguments{
 \item{x.train}{data.frame or matrix; The input matrix corresponding to the feature 
-space only. Additional covariates are found in `y`. Rows = samples, Columns = features}
+space only. Additional covariates are found in `y`. Rows represent samples, Columns represent features.}
 
 \item{y.train}{data.frame or matrix; The output matrix. 
 Columns = c(y.label, y.covariates, y.sample)}
 
-\item{y.label}{character; The column of `y` corresponding to the binary output}
+\item{y.label}{character; The column of `y` corresponding to the binary output.}
 
-\item{x.test}{data.frame or matrix; The input data like x.train but for testing}
+\item{x.test}{data.frame or matrix; The input data similar to x.train but for testing.}
 
-\item{y.test}{data.frame or matrix; The output matrix like y.train but for testing}
+\item{y.test}{data.frame or matrix; The output matrix similar to y.train but for testing.}
 
 \item{DEA.data}{data.frame or matrix; The input matrix for the DEA. 
-Rows = samples, Columns = features. If NULL, the DEA.data is x
-Default = NULL}
+Rows represent samples, Columns represent features. If NULL, DEA.data is set to x.
+Default = NULL.}
 
-\item{method}{character; The prediction method. Possible values are: "LR": 
-Logistic regression or "signature" signature-score approach.}
+\item{method}{character; The prediction method. Possible values are: "LR" (Logistic regression) or "signature" (signature-score approach).}
 
-\item{data.trans.method}{character: The data transforamtion method. 
-Possible values are "pca" 
-Default = "none" i.e. no transformation.}
+\item{data.trans.method}{character; The data transformation method. 
+Possible values are "pca". Default = "none" (i.e., no transformation).}
 
-\item{pca.explained.var.threshold}{numeric: If not NULL, apply this threshold 
-to select PCs explaining more variance than the threhsold}
+\item{pca.explained.var.threshold}{numeric; If not NULL, apply this threshold 
+to select PCs explaining more variance than the threshold.}
 
-\item{rm.corr.features}{logical: Do we remove the mutually correlated feature 
+\item{rm.corr.features}{logical; Should mutually correlated features be removed 
 while keeping the ones that best correlate with the outcome? 
-default = F}
-
-\item{rm.corr.features.threhsold}{numerical: The correlation threshold of rm.corr.features
-Default = 0.8}
+Default = FALSE.}
 
 \item{DA.method}{character; The discriminant analysis (DA) method. 
-Possible values are "wilcox"
-Default = "none" i.e. no discriminant analysis}
+Possible values are "wilcox". Default = "none" (i.e., no discriminant analysis).}
 
-\item{y.sample}{character; The column of `y` corresponding to the samples for when method = "signature"}
+\item{y.sample}{character; The column of `y` corresponding to the samples when method = "signature".}
 
-\item{y.covariates}{character vector; The columns of `y` corresponding to the covariates}
+\item{y.covariates}{character vector; The columns of `y` corresponding to the covariates.}
 
-\item{DA.p.adjust.method}{character; The p-value adjust method for the 
-discriminant analysis. 
-Default = "fdr"}
+\item{DA.p.adjust.method}{character; The p-value adjustment method for the 
+discriminant analysis. Default = "fdr".}
 
-\item{DA.p.val.threshold}{numeric; The p-val significant threshold.}
+\item{DA.p.val.threshold}{numeric; The p-value significance threshold.}
 
-\item{DA.event.per.variable, }{numerical; The number of event per variable threshold
-A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-a way to select a fewer amount of variables for a fixed amount of samples. 
-Default = NULL (no selection on EPV)}
+\item{DA.event.per.variable}{numeric; The number of events per variable threshold.
+A common EPV is 10, meaning that we need 10 events per variable. Here, it is used 
+to select fewer variables for a fixed number of samples. 
+Default = NULL (no selection based on EPV).}
+
+\item{rm.corr.features.threshold}{numeric; The correlation threshold for rm.corr.features.
+Default = 0.8.}
 }
 \value{
-data.frame summarizing the Nested-cross-validation
+data.frame summarizing the Nested-cross-validation.
 }
 \description{
-Function which compiles the different steps to prepare the input data for some model. 
+This function compiles the various steps to prepare input data for a model. 
 The steps are:
 1. Data Transformation (data.trans.method)
 2. Remove Correlated Features (rm.corr.features)
-3. Discriminant analysis (DA.method)
+3. Discriminant Analysis (DA.method)
 }
 \details{
-Note that every step can be skipped by setting the corresponding parameters 
-to "none", False, "none" respectively.
+Note that each step can be skipped by setting the corresponding parameters 
+to "none", FALSE, and "none" respectively.
 }

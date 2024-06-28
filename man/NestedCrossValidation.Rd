@@ -2,7 +2,7 @@
 % Please edit documentation in R/Cross_Validation.R
 \name{NestedCrossValidation}
 \alias{NestedCrossValidation}
-\title{Nested Cross Validation}
+\title{Nested Cross Validation loop}
 \usage{
 NestedCrossValidation(
   x,
@@ -38,107 +38,98 @@ NestedCrossValidation(
 }
 \arguments{
 \item{x}{data.frame or matrix; The input matrix corresponding to the feature 
-space only. additional covariates are found in `y`. Rows = samples, 
-Columns = features}
+space only. Additional covariates are found in `y`. Rows = samples, Columns = features.}
 
 \item{y}{data.frame or matrix; The output matrix. 
-Columns = c(y.label, y.covariates, y.sample)}
+Columns = c(y.label, y.covariates, y.sample).}
 
-\item{CV.k.in}{numerical: The number of inner folds
-Default = 5}
+\item{CV.k.in}{numeric; The number of inner folds. Default = 5.}
 
-\item{CV.k.out}{numerical: The number of outer folds
-Default = 5}
+\item{CV.k.out}{numeric; The number of outer folds. Default = 5.}
 
-\item{CV.y.leave.1.out.column}{vector; If not NULL, vector to create Leave-1-out category CV}
+\item{CV.y.leave.1.out.column}{vector; If not NULL, vector to create Leave-1-out category CV.}
 
-\item{CV.replicates}{numerical; The number of replicates. 
-At each replicate, the seed is increased by 1}
+\item{CV.replicates}{numeric; The number of replicates. 
+At each replicate, the seed is increased by 1.}
 
 \item{CV.sampling.method}{character; The sampling method to balance the folds. 
-if "under", Undersampling is performed to balance the categories in every fold
-if "upper", Uppersampling is performed to balance the categories in every fold
-if "none", no balancing sampling is performed. 
-Default = "under"}
+If "under", undersampling is performed to balance the categories in every fold. (default)
+If "upper", oversampling is performed to balance the categories in every fold.
+If "none", no balancing sampling is performed.}
 
-\item{y.label}{character; The column of `y` corresponding to the binary output}
+\item{y.label}{character; The column of `y` corresponding to the binary output.}
 
-\item{y.covariates}{character vector; The columns of `y` corresponding to the covariates}
+\item{y.covariates}{character vector; The columns of `y` corresponding to the covariates.}
 
-\item{y.sample}{character; The column of `y` corresponding to the samples for when method = "signature"}
+\item{y.sample}{character; The column of `y` corresponding to the samples for when method = "signature".}
 
-\item{method}{character; The prediction method. Possible values are: "LR": 
-Logistic regression or "signature" signature-score approach.}
+\item{method}{character; The prediction method. Possible values are: 
+"LR" (Logistic regression) or "signature" (signature-score approach).}
 
-\item{metric.to.optimize}{character; metric to optimize. 
-Default = mcc}
+\item{metric.to.optimize}{character; metric to optimize. Default = mcc}
 
 \item{hyperparams}{list: The hyper-parameter list. 
-if method = "LR": Elements of list are 
-  - "alpha" (L2-regularization): Vector of alpha values (0-1)
-  - "lambda" (L1-regularization): Vector of lambda values (0-1)
-if method = "signature": Elements of list are 
-  - "signature.lengths": Vector of signature lengths
-  - "signature.side": Vector of siganture sides ("up", "down" or "both")
-  - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
-  - "signature.methods": Vector of signature score methods}
+If method = "LR": Elements of the list are 
+  - "alpha" (L2-regularization): Vector of alpha values (0-1).
+  - "lambda" (L1-regularization): Vector of lambda values (0-1).
+If method = "signature": Elements of the list are 
+  - "signature.lengths": Vector of signature lengths.
+  - "signature.side": Vector of signature sides ("up", "down", or "both").
+  - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature).
+  - "signature.methods": Vector of signature score methods.
+  - "signature.selection.method": How to select genes from DEA res using the log-Fold-Change ("logFC") or p-values ("pval")}
 
-\item{data.trans.method}{character: The data transforamtion method. 
-Possible values are "pca" 
-Default = "none" i.e. no transformation.}
+\item{data.trans.method}{character; The data transformation method. 
+Possible values are "pca". Default = "none" i.e., no transformation.}
 
-\item{pca.explained.var.threshold}{numeric: If not NULL, apply this threshold 
-to select PCs explaining more variance than the threhsold}
+\item{pca.explained.var.threshold}{numeric; If not NULL, apply this threshold 
+to select PCs explaining more variance than the threshold.}
 
-\item{rm.corr.features}{logical: Do we remove the mutually correlated feature 
+\item{rm.corr.features}{logical; Do we remove the mutually correlated features 
 while keeping the ones that best correlate with the outcome? 
-default = F}
+Default = FALSE.}
 
 \item{DA.method}{character; The discriminant analysis (DA) method. 
-Possible values are "wilcox"
-Default = "none" i.e. no discriminant analysis}
+Possible values are "wilcox". Default = "none" i.e., no discriminant analysis.}
 
-\item{DA.p.adjust.method}{character; The p-value adjust method for the 
-discriminant analysis. 
-Default = "fdr"}
+\item{DA.p.adjust.method}{character; The p-value adjustment method for the 
+discriminant analysis. Default = "fdr".}
 
-\item{DA.p.val.threshold}{numeric; The p-val significant threshold.}
+\item{DA.p.val.threshold}{numeric; The p-value significance threshold.}
 
-\item{DA.event.per.variable, }{numerical; The number of event per variable threshold
-A common EPV is 10 meaning that we need 10 event per variable. Here we use it as 
-a way to select a fewer amount of variables for a fixed amount of samples. 
-Default = NULL (no selection on EPV)}
-
-\item{LR.prob.threhsold}{numeric; The probability threshold for the logitic regression}
+\item{DA.event.per.variable}{numeric; The number of events per variable threshold.
+A common EPV is 10, meaning that we need 10 events per variable. Here we use it as 
+a way to select a fewer number of variables for a fixed number of samples. 
+Default = NULL (no selection on EPV).}
 
 \item{signature.col.aggregate}{character; Column in y to combine cells into pseudobulk. 
-If NULL, no pseudobulk integration
-Default = NULL}
+If NULL, no pseudobulk integration. Default = NULL.}
 
-\item{DEA.method}{character; The Differential-expression-analylsis method (see RunDEA())
-default = "wilcox" from the Seurat::FindMarker() function}
+\item{DEA.method}{character; The Differential-expression-analysis method (see RunDEA()).
+Default = "wilcox" from the Seurat::FindMarker() function.}
 
 \item{DEA.data}{data.frame or matrix; The input matrix for the DEA. 
-Rows = samples, Columns = features. If NULL, the DEA.data is x
-Default = NULL}
+Rows = samples, Columns = features. If NULL, the DEA.data is x. Default = NULL.}
 
 \item{sample.weights}{data.frame (rows = observation, column = weight); The 
-observation weights data.frame. 
-Default = NULL i.e. 1 for each observation}
+observation weights data.frame. Default = NULL i.e., 1 for each observation.}
 
 \item{folds.save.folder}{character; Folder to save the fold model information. 
-If null doesn't save anything. if not null, a folder called "NCV_", fold.out.name, "_", fold.in.name
-will be created to store the model information in. 
-default = NULL}
+If NULL, doesn't save anything. If not NULL, a folder called "NCV_", fold.out.name, "_", fold.in.name
+will be created to store the model information. Default = NULL}
 
-\item{file.NCV.inner}{character; If not null, save inner fold information to this file
-Default = NULL}
+\item{file.NCV.inner}{character; If not null, save inner fold information to this file. Default = NULL}
 
-\item{file.NCV.outer}{character; If not null, save outer fold information to this file
-Default = NULL}
+\item{file.NCV.outer}{character; If not null, save outer fold information to this file. Default = NULL}
+
+\item{seed}{numerical: The seed (default = .Random.seed[1])}
+
+\item{LR.prob.threshold}{numeric; The probability threshold for the logistic regression.}
 }
 \value{
 data.frame summarizing the Nested-cross-validation
+
+ @export
 }
 \description{
 Home Nested Cross validation function

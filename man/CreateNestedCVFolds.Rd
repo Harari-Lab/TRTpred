@@ -19,28 +19,24 @@ CreateNestedCVFolds(
 
 \item{y.leave.1.out}{vector; If not NULL, vector to create Leave-1-out category CV}
 
-\item{k.out}{numerical: The number of outer folds
-Default = 5}
+\item{k.out}{numerical: The number of outer folds (default = 5)}
 
-\item{k.in}{numerical: The number of inner folds
-Default = 5}
+\item{k.in}{numerical: The number of inner folds (default = 5)}
 
-\item{replicates}{numerical; The number of replicates. 
-At each replicate, the seed is increased by 1}
+\item{replicates}{numerical; The number of replicates. At each replicate, the seed is increased by 1}
 
-\item{sampling.method}{character; The sampling method to balance the folds. 
-if "under", Undersampling is performed to balance the categories in every fold
-if "upper", Uppersampling is performed to balance the categories in every fold
-if "none", no balancing sampling is performed. 
-Default = "under"}
+\item{sampling.method}{character; The sampling method to balance the folds:
+- "under": Undersampling is performed to balance the categories in every fold (default)
+- "upper": Oversampling is performed to balance the categories in every fold
+- "none": No balancing sampling is performed}
 
-\item{seed}{numerical: The seed Default = .Random.seed[1]}
+\item{seed}{numerical: The seed (default = .Random.seed[1])}
 }
 \value{
-list of list. first level = outer-folds, second level = inner folds. 
-The content of the inner-fold list is the same as in CreateCVFolds()
+list of lists. The first level corresponds to outer folds, and the second level contains inner folds.
+The content of the inner-fold list is the same as in CreateCVFolds().
 }
 \description{
-Function to create Nested cross validation folds using the CreateCVFolds in this package.
-See ? CreateCVFolds() for more details
+Function to create nested cross-validation folds using the CreateCVFolds in this package.
+See ?CreateCVFolds() for more details.
 }

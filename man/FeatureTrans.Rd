@@ -2,7 +2,7 @@
 % Please edit documentation in R/Data_preparation.R
 \name{FeatureTrans}
 \alias{FeatureTrans}
-\title{Feature space transformation function}
+\title{Feature Space Transformation Function}
 \usage{
 FeatureTrans(
   x.train,
@@ -13,20 +13,20 @@ FeatureTrans(
 )
 }
 \arguments{
-\item{x.train}{data.frame or matrix; The testing input data. Apply (predict) the trained PCA on it}
+\item{x.train}{data.frame or matrix; The training input data. Train the PCA on this data.}
 
-\item{method}{character; The data transformation method.
-possible values are : pca
-Default = pca}
+\item{x.test}{data.frame or matrix; The testing input data. Apply (predict) the trained PCA on this data.}
 
-\item{explained.var.threshold}{numerical; If method = "pca". Threshold to 
-select the PCs with explained variable above the threshold
-Default = NULL (no threshold)}
+\item{method}{character; The data transformation method. Possible values are: "pca".
+Default = "pca".}
+
+\item{explained.var.threshold}{numeric; If method = "pca", this threshold is used to 
+select the PCs with explained variance above the threshold.
+Default = NULL (no threshold).}
 }
 \value{
-list of traingin and testing data.frames of transformed data
+list; A list of training and testing data.frames of transformed data.
 }
 \description{
-Function to transforme the feature space into another feature space. Example 
-with PCA
+Function to transform the feature space into another feature space, e.g., with PCA.
 }

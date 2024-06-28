@@ -2,7 +2,7 @@
 % Please edit documentation in R/Cross_Validation.R
 \name{GetBestHyperparams}
 \alias{GetBestHyperparams}
-\title{Get the best hyper-parameters for Nested cross validation}
+\title{Get the Best Hyper-parameters for Nested Cross Validation}
 \usage{
 GetBestHyperparams(
   CV.res,
@@ -13,24 +13,24 @@ GetBestHyperparams(
 )
 }
 \arguments{
-\item{CV.res}{data.frame; Nested-Cross-Validation results as returned by .CrossValidationLoop() or .NestedCrossValidationLoop()}
+\item{CV.res}{data.frame; Nested-Cross-Validation results as returned by .CrossValidationLoop() or .NestedCrossValidationLoop().}
 
-\item{method}{characters; The method of the origin model. possible values are
-"LR" (default), "signature"}
+\item{method}{character; The method of the origin model. Possible values are
+"LR" (default), "signature".}
 
-\item{CV.type}{characters; The name of the cross-validation type. Possible 
-values are "CV" (default) or "NCV"}
+\item{CV.type}{character; The name of the cross-validation type. Possible 
+values are "CV" (default) or "NCV".}
 
-\item{outer.col}{character; The name of the outer-fold column in outer.col}
+\item{outer.col}{character; The name of the outer-fold column in CV.res.}
 
 \item{selection.metric}{character; Selection metrics. Possible values are 
-"mcc" (default), "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV"}
+"mcc" (default), "accuracy", "F1", "kappa", "auc", "sensitivity", "specificity", "PPV", "NPV".}
 }
 \value{
-data.frame; Data frame summarizing the best hyper-parameters for each outerfold
+data.frame; Data frame summarizing the best hyper-parameters for each outer fold.
 }
 \description{
 Function to get the best hyper-parameters for the nested cross validation. 
 It can compute all hyperparameters in a list. 
-It can simultaneously get the best hyper-parameters for mcc, accuracy, F1 and kappa.
+It can simultaneously get the best hyper-parameters for MCC, accuracy, F1, and kappa.
 }

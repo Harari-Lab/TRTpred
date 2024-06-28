@@ -53,14 +53,14 @@ Columns = c(y.label, y.covariates, y.sample)}
 Logistic regression or "signature" signature-score approach.}
 
 \item{hyperparams}{list: The hyper-parameter list. 
-if method = "LR": Elements of list are 
-  - "alpha" (L2-regularization): Vector of alpha values (0-1)
-  - "lambda" (L1-regularization): Vector of lambda values (0-1)
-if method = "signature": Elements of list are 
-  - "signature.lengths": Vector of signature lengths
-  - "signature.side": Vector of siganture sides ("up", "down" or "both")
-  - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature)
-  - "signature.methods": Vector of signature score methods
+If method = "LR": Elements of the list are 
+  - "alpha" (L2-regularization): Vector of alpha values (0-1).
+  - "lambda" (L1-regularization): Vector of lambda values (0-1).
+If method = "signature": Elements of the list are 
+  - "signature.lengths": Vector of signature lengths.
+  - "signature.side": Vector of signature sides ("up", "down", or "both").
+  - "signature.rm.regex": Vector of rm.regex (regex to remove genes from signature).
+  - "signature.methods": Vector of signature score methods.
   - "signature.selection.method": How to select genes from DEA res using the log-Fold-Change ("logFC") or p-values ("pval")}
 
 \item{data.trans.method}{character: The data transforamtion method. 

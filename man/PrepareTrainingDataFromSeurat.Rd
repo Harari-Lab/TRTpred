@@ -20,7 +20,7 @@ PrepareTrainingDataFromSeurat(
 \arguments{
 \item{SeuratObject}{Seurat object; The Seurat object (required)}
 
-\item{label}{character; The y-label (i.e tumor reactivity) (required)}
+\item{label}{character; The y-label (i.e tumor reactivtiy) (required)}
 
 \item{label.order}{character; the order of the y-label to transform them into factor}
 
@@ -34,7 +34,7 @@ Default = NULL = same as assay}
 \item{DEA.slot}{character; The assay slot used for the Differential Expression Analysis 
 Default = NULL = same as slot}
 
-\item{DEA.pseudobulk.col}{character; The colname in Seurat used to construct pseudobluck for the pseudobulk DEA
+\item{DEA.pseudobulk.col}{character; The column names in Seurat used to construct pseudobluk for the pseudobluk DEA
 Default = NULL}
 
 \item{covariates}{characters; The covariates list

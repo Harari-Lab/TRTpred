@@ -4,7 +4,11 @@ Title: Tumor Reactive TCR prediction
 Authors@R: c(
   person(given = 'Rémy', family = 'Pétremand', email = 'remy.petremand@chuv.ch', role = c('aut','cre'), comment = c(ORCID = '0000-0002-7629-7336'))
   )
+Maintainer@R: c(
+  person(given = 'Rémy', family = 'Pétremand', email = 'remy.petremand@chuv.ch', role = c('aut','cre'), comment = c(ORCID = '0000-0002-7629-7336'))
+  )
 Description: This package predicts which cells and their expressed TCRs tumor reactive
+LazyData: true
 Depends: R (>= 3.6.1)
 Imports:
     Seurat (>= 4.0.0),
@@ -15,7 +19,7 @@ Imports:
     GSEABase
 Suggests:
     ggplot2
-License: GPL-3
+License: file LICENSE
 Encoding: UTF-8
 Version: 0.0.1
 RoxygenNote: 7.2.3

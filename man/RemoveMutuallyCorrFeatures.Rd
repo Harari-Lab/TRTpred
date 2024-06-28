@@ -11,7 +11,7 @@ RemoveMutuallyCorrFeatures(x, y, threshold = 0.8)
 
 \item{y}{categorical vector; The binary output}
 
-\item{threshold}{numerical; Significant correlaltion threhsolld
+\item{threshold}{numerical; Significant correlation threshold
 default = 0.8}
 }
 \value{
