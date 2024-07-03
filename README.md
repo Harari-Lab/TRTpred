@@ -213,16 +213,29 @@ Every sub-folder has 3 sub-folders:
     these parts
 3.  Results: Results folder
 
+## Software
+
+The product is provided free of charge, and, therefore, on an “as is”
+basis, without warranty of any kind.
+
+For scientific questions, please contact [Rémy
+Pétremand](mailto:remy.petremand@chuv.ch). FOR-PROFIT USERS: If you plan
+to use or any data provided with the script in any for-profit
+application, you are required to obtain a separate license. To do so,
+please contact [Nadette Bulgin](mailto:nbulgin@lcr.org) at the Ludwig
+Institute for Cancer Research Ltd.
+
 ## Notes for users
 
 TRTpred was build on CD8+ tumor-infiltrating lymphocytes (TILs). The
 input of the package are the CD8+ TILs single-cell RNA-sequencing data.
 
-For scientific questions, please contact Rémy Pétremand
-[email](mailto:remy.petremand@chuv.ch)
+For scientific questions, please contact [Rémy
+Pétremand](mailto:remy.petremand@chuv.ch).
 
-For license-related questions, please contact Nadette Bulgin
-[email](nbulgin@lcr.org)
+For license-related questions, please contact [Nadette
+Bulgin](mailto:nbulgin@lcr.org) at the Ludwig Institute for Cancer
+Research Ltd.
 
 ## Citations
 
