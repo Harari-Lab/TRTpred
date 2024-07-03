@@ -46,6 +46,7 @@ docker run -e PASSWORD=1234 -p 8787:8787 -v /user/username/Document/TRTpred:/hom
 R CMD build TRTpred
 R CMD INSTALL TRTpred_0.0.1.tar.gz
 ```
+
 6. Optional: Test the package in docs/TRTpred_Demo_01.rmd
 
 
@@ -169,6 +170,10 @@ Every sub-folder has 3 sub-folders:
 ## Notes for users
 
 TRTpred was build on CD8+ tumor-infiltrating lymphocytes (TILs). The input of the package are the CD8+ TILs single-cell RNA-sequencing data. 
+
+For scientific questions, please contact Rémy Pétremand [email](mailto:remy.petremand@chuv.ch)
+
+For license-related questions, please contact Nadette Bulgin [email](nbulgin@lcr.org)
 
 ## Citations
 
